@@ -1,56 +1,122 @@
 {
   "parameters": [
     {
-      "id": "rightShoulder",
-      "label": "Right Shoulder"
+      "id": "1",
+      "label": "Right Anterior Deltoid"
     },
     {
-      "id": "rightArm",
-      "label": "Right Arm Muscle"
+      "id": "2",
+      "label": "Right  Medial Deltoid"
     },
     {
-      "id": "leftShoulder",
-      "label": "Left Shoulder"
+      "id": "3",
+      "label": "Right  Posterior Deltoid"
     },
     {
-      "id": "leftArm",
-      "label": "Left Arm (Anterior Deltoid)"
+      "id": "4",
+      "label": "Right Arm"
     },
     {
-      "id": "upperBack",
-      "label": "Upper Back (Scapula)"
+      "id": "5",
+      "label": "Left Anterior Deltoid"
     },
     {
-      "id": "lowerBack",
-      "label": "Lower Back"
+      "id": "6",
+      "label": "Left Medial Deltoid"
     },
     {
-      "id": "param_1783745694732",
-      "label": "sdsad"
+      "id": "7",
+      "label": "Left Posterior Deltoid"
     },
     {
-      "id": "param_1783745807188",
-      "label": "erewr"
+      "id": "8",
+      "label": "Left Arm"
     },
     {
-      "id": "param_1783747798413",
-      "label": "test"
+      "id": "9",
+      "label": "Upper Trapezius"
+    },
+    {
+      "id": "10",
+      "label": "Middle Trapezius"
+    },
+    {
+      "id": "11",
+      "label": "Lower Trapezius"
+    },
+    {
+      "id": "12",
+      "label": "Right Calf "
+    },
+    {
+      "id": "13",
+      "label": "Left Calf"
     }
   ],
   "logs": [
     {
-      "id": "1783747827138",
+      "id": "1783751772233",
+      "date": "Fri Jul 10 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "painLevels": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 1,
+        "5": 5,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 2,
+        "12": 0,
+        "13": 0
+      },
+      "notes": ""
+    },
+    {
+      "id": "1783751846346",
       "date": "Sat Jul 11 2026 00:00:00 GMT+0530 (India Standard Time)",
       "painLevels": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 3,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 2,
+        "11": 3,
+        "12": 0,
+        "13": 0
+      },
+      "notes": ""
+    },
+    {
+      "id": "1783752522045",
+      "date": "2026-07-11",
+      "painLevels": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0,
+        "13": 0,
         "rightShoulder": 0,
         "rightArm": 1,
         "leftShoulder": 3,
         "leftArm": 5,
         "upperBack": 2,
-        "lowerBack": 0,
-        "param_1783745694732": 0,
-        "param_1783745807188": 0,
-        "param_1783747798413": 0
+        "lowerBack": 0
       },
       "notes": ""
     }

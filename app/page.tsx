@@ -82,6 +82,33 @@ const getMockLogs = (): LogEntry[] => {
   });
 };
 
+const formatDateString = (dateStr: string) => {
+  if (!dateStr) return "";
+  let dateObj: Date;
+  if (dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      dateObj = new Date(year, month - 1, day);
+    } else {
+      dateObj = new Date(dateStr);
+    }
+  } else {
+    dateObj = new Date(dateStr);
+  }
+
+  if (isNaN(dateObj.getTime())) {
+    return dateStr;
+  }
+
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dayName = days[dateObj.getDay()];
+  const monthName = months[dateObj.getMonth()];
+  const dayNum = dateObj.getDate();
+  return `${monthName} ${dayNum}`;
+};
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -560,6 +587,84 @@ export default function Home() {
         </div>
       </section>
 
+      {/* HISTORICAL TIMELINE LOG */}
+      <div className="glass-panel p-6 flex flex-col gap-4 w-full">
+        <h2 className="text-xl font-bold text-zinc-100 pb-3 border-b border-zinc-800/60">Biometric Archives</h2>
+
+        {logs.length === 0 ? (
+          <div className="text-center py-8 text-xs text-zinc-500 font-mono uppercase">
+            Zero Logs Committed. Add entries above.
+          </div>
+        ) : (
+          <div className="overflow-x-auto w-full max-h-[360px] border border-zinc-800/60 rounded-xl">
+            <table className="w-full text-left text-sm md:text-base font-mono border-collapse">
+              <thead>
+                <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-10">
+                  <th className="p-3 whitespace-nowrap">Date</th>
+                  {parameters.map((p, index) => (
+                    <th key={p.id} className="p-3 text-center whitespace-nowrap">
+                      <span className="flex items-center justify-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
+                        {p.label}
+                      </span>
+                    </th>
+                  ))}
+                  <th className="p-3 whitespace-nowrap min-w-[150px]">Notes</th>
+                  <th className="p-3 text-center whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/60">
+                {[...logs].reverse().map((entry) => {
+                  return (
+                    <tr key={entry.id} className="hover:bg-zinc-900/30 transition-colors">
+                      {/* Date */}
+                      <td className="p-3 whitespace-nowrap font-bold text-zinc-300">
+                        {formatDateString(entry.date)}
+                      </td>
+                      {/* Parameter Values */}
+                      {parameters.map((param) => {
+                        const val = (entry.painLevels && entry.painLevels[param.id]) ?? 0;
+                        const styles = getSeverityStyles(val);
+                        return (
+                          <td key={param.id} className="p-3 text-center whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded font-bold ${styles.bg} ${styles.text} border ${styles.border}`}>
+                              {val}
+                            </span>
+                          </td>
+                        );
+                      })}
+                      {/* Notes */}
+                      <td className="p-3 text-zinc-400 max-w-[200px] truncate italic" title={entry.notes}>
+                        {entry.notes || "-"}
+                      </td>
+                      {/* Actions */}
+                      <td className="p-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleEditLog(entry)}
+                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition"
+                            title="Edit entry"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z" /></svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLog(entry.id)}
+                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-400 transition"
+                            title="Delete entry"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* MAIN CONTENT SPLIT PANE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
@@ -862,8 +967,22 @@ export default function Home() {
                     if (!shouldShowLabel) return null;
 
                     // format to MM/DD
-                    const parts = pt.date.split("-");
-                    const label = parts.length === 3 ? `${parts[1]}/${parts[2]}` : pt.date;
+                    let label = pt.date;
+                    let dateObj: Date | null = null;
+                    if (pt.date.includes("-")) {
+                      const dateParts = pt.date.split("-");
+                      if (dateParts.length === 3) {
+                        const [year, month, day] = dateParts.map(Number);
+                        dateObj = new Date(year, month - 1, day);
+                      }
+                    } else {
+                      dateObj = new Date(pt.date);
+                    }
+                    if (dateObj && !isNaN(dateObj.getTime())) {
+                      const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+                      const d = String(dateObj.getDate()).padStart(2, "0");
+                      label = `${m}/${d}`;
+                    }
 
                     return (
                       <text
@@ -920,121 +1039,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* SEVERITY LEGEND */}
-      <div className="glass-panel p-4 flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Severity Legend</h3>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-            <span>0/10 - Pain Free</span>
-          </div>
-          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-            <span>1-3/10 - Mild</span>
-          </div>
-          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
-            <span>4-6/10 - Moderate</span>
-          </div>
-          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-            <span>7-10/10 - Severe</span>
-          </div>
-        </div>
-      </div>
 
-      {/* HISTORICAL TIMELINE LOG */}
-      <div className="glass-panel p-6 flex flex-col gap-4 w-full">
-        <h2 className="text-xl font-bold text-zinc-100 pb-3 border-b border-zinc-800/60">Biometric Archives</h2>
-
-        {logs.length === 0 ? (
-          <div className="text-center py-8 text-xs text-zinc-500 font-mono uppercase">
-            Zero Logs Committed. Add entries above.
-          </div>
-        ) : (
-          <div className="overflow-x-auto w-full max-h-[360px] border border-zinc-800/60 rounded-xl">
-            <table className="w-full text-left text-xs font-mono border-collapse">
-              <thead>
-                <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-10">
-                  <th className="p-3 whitespace-nowrap">Date</th>
-                  <th className="p-3 text-center whitespace-nowrap">Avg</th>
-                  {parameters.map((p, index) => (
-                    <th key={p.id} className="p-3 text-center whitespace-nowrap">
-                      <span className="flex items-center justify-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                        {p.label}
-                      </span>
-                    </th>
-                  ))}
-                  <th className="p-3 whitespace-nowrap min-w-[150px]">Notes</th>
-                  <th className="p-3 text-center whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {[...logs].reverse().map((entry) => {
-                  let sum = 0;
-                  let count = 0;
-                  parameters.forEach((p) => {
-                    if (entry.painLevels && entry.painLevels[p.id] !== undefined) {
-                      sum += entry.painLevels[p.id];
-                      count++;
-                    }
-                  });
-                  const avgIndex = count > 0 ? Number((sum / count).toFixed(1)) : 0;
-
-                  return (
-                    <tr key={entry.id} className="hover:bg-zinc-900/30 transition-colors">
-                      {/* Date */}
-                      <td className="p-3 whitespace-nowrap font-bold text-zinc-300">
-                        {entry.date}
-                      </td>
-                      {/* Avg Index */}
-                      <td className="p-3 text-center font-bold text-cyan-400 whitespace-nowrap">
-                        {avgIndex}/10
-                      </td>
-                      {/* Parameter Values */}
-                      {parameters.map((param) => {
-                        const val = (entry.painLevels && entry.painLevels[param.id]) ?? 0;
-                        const styles = getSeverityStyles(val);
-                        return (
-                          <td key={param.id} className="p-3 text-center whitespace-nowrap">
-                            <span className={`px-2 py-0.5 rounded font-bold ${styles.bg} ${styles.text} border ${styles.border}`}>
-                              {val}
-                            </span>
-                          </td>
-                        );
-                      })}
-                      {/* Notes */}
-                      <td className="p-3 text-zinc-400 max-w-[200px] truncate italic" title={entry.notes}>
-                        {entry.notes || "-"}
-                      </td>
-                      {/* Actions */}
-                      <td className="p-3">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => handleEditLog(entry)}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition"
-                            title="Edit entry"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z" /></svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteLog(entry.id)}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-400 transition"
-                            title="Delete entry"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl border border-cyan-500/30 bg-zinc-950/90 backdrop-blur-md shadow-2xl shadow-cyan-500/10 text-xs font-mono font-medium text-cyan-400 animate-slide-up">
