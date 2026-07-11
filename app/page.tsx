@@ -537,7 +537,7 @@ export default function Home() {
             <span className="text-xs font-mono tracking-widest text-zinc-500 uppercase">SYSTEM ACTIVE</span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-500 bg-clip-text text-transparent">
-            Poojs's Pain Tracking
+            Pooja's Pain Tracking
           </h1>
           {/* <p className="text-sm text-zinc-400 mt-1">
             Holographic biometric monitoring of upper-body muscular dynamics
@@ -600,7 +600,7 @@ export default function Home() {
             <table className="w-full text-left text-sm md:text-base font-mono border-collapse">
               <thead>
                 <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-20">
-                  <th className="p-3 sticky left-0 bg-zinc-900 z-30 border-r border-zinc-800 whitespace-nowrap min-w-[200px]">
+                  <th className="p-3 sticky left-0 bg-zinc-900 z-30 border-r border-zinc-800 min-w-[140px] max-w-[140px]">
                     Parameter
                   </th>
                   {[...logs].reverse().map((entry) => (
@@ -615,10 +615,10 @@ export default function Home() {
                 {parameters.map((param, index) => (
                   <tr key={param.id} className="hover:bg-zinc-900/30 transition-colors">
                     {/* Sticky Parameter Name */}
-                    <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-300 z-10 border-r border-zinc-800 whitespace-nowrap">
+                    <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-300 z-10 border-r border-zinc-800 min-w-[140px] max-w-[140px]">
                       <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                        {param.label}
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
+                        <span>{param.label}</span>
                       </span>
                     </td>
                     {/* Values for each date */}
@@ -638,7 +638,7 @@ export default function Home() {
 
                 {/* 2. Notes Row */}
                 <tr className="hover:bg-zinc-900/30 transition-colors">
-                  <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-400 z-10 border-r border-zinc-800 whitespace-nowrap">
+                  <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-400 z-10 border-r border-zinc-800 min-w-[130px] max-w-[130px]">
                     Notes
                   </td>
                   {[...logs].reverse().map((entry) => (
@@ -650,7 +650,7 @@ export default function Home() {
 
                 {/* 3. Actions Row */}
                 <tr className="hover:bg-zinc-900/30 transition-colors">
-                  <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-400 z-10 border-r border-zinc-800 whitespace-nowrap">
+                  <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-400 z-10 border-r border-zinc-800 min-w-[130px] max-w-[130px]">
                     Actions
                   </td>
                   {[...logs].reverse().map((entry) => (
