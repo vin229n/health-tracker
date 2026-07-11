@@ -31,7 +31,28 @@
     {
       "id": "param_1783745807188",
       "label": "erewr"
+    },
+    {
+      "id": "param_1783747798413",
+      "label": "test"
     }
   ],
-  "logs": []
+  "logs": [
+    {
+      "id": "1783747827138",
+      "date": "2026-07-11",
+      "painLevels": {
+        "rightShoulder": 0,
+        "rightArm": 1,
+        "leftShoulder": 3,
+        "leftArm": 5,
+        "upperBack": 2,
+        "lowerBack": 0,
+        "param_1783745694732": 0,
+        "param_1783745807188": 0,
+        "param_1783747798413": 0
+      },
+      "notes": ""
+    }
+  ]
 }

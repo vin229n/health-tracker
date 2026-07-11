@@ -63,7 +63,14 @@ const isVercel = process.env.VERCEL === "1";
 const DATA_DIR = isVercel ? "/tmp" : path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "data.json");
 
-async function readData() {
+// Hardcoded spreadsheet link for reference
+export const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1YNPRKs4AT9ipLiZ-97mElz7dipgiRUHQBaropNV8nIc/edit?gid=0#gid=0";
+
+// Google Apps Script Web App URL. Define this in .env.local as GOOGLE_SCRIPT_URL,
+// or paste your URL directly into the string below.
+const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbw8O2tdIDKZppS0UU8kIDyum2ZIJyM9Ep6wv4yllr0iolrdjpIW3xenpTYXxJanVVHw/exec";
+
+async function readLocalData() {
   try {
     const fileContent = await fs.readFile(DATA_FILE, "utf-8");
     return JSON.parse(fileContent);
@@ -81,9 +88,86 @@ async function readData() {
   }
 }
 
-async function writeData(data: any) {
+async function writeLocalData(data: any) {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
+}
+
+async function readData() {
+  if (!GOOGLE_SCRIPT_URL) {
+    console.warn("Google Sheets Integration (GOOGLE_SCRIPT_URL) is not configured. Using local storage.");
+    return readLocalData();
+  }
+
+  try {
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+      },
+      cache: "no-store",
+      redirect: "follow",
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (data && data.error) {
+      throw new Error(data.error);
+    }
+
+    // Auto-sync: If the sheet is empty, write current local/mock data to the sheet
+    const hasParams = data.parameters && data.parameters.length > 0;
+    const hasLogs = data.logs && data.logs.length > 0;
+    if (!hasParams && !hasLogs) {
+      console.log("Google Sheet is empty. Syncing local/mock data to the Google Sheet...");
+      const localData = await readLocalData();
+      await writeData(localData);
+      return localData;
+    }
+
+    // Keep local cache in sync as a backup
+    await writeLocalData(data);
+    return data;
+  } catch (error: any) {
+    console.error("Failed to read from Google Sheets. Falling back to local data cache:", error.message);
+    return readLocalData();
+  }
+}
+
+async function writeData(data: any) {
+  // Always update local cache first
+  await writeLocalData(data);
+
+  if (!GOOGLE_SCRIPT_URL) {
+    console.warn("Google Sheets Integration (GOOGLE_SCRIPT_URL) is not configured. Data saved locally only.");
+    return;
+  }
+
+  try {
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+      redirect: "follow",
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const result = await res.json();
+    if (result && result.error) {
+      throw new Error(result.error);
+    }
+  } catch (error: any) {
+    console.error("Failed to write to Google Sheets:", error.message);
+    throw new Error(`Failed to write to Google Sheets: ${error.message}`);
+  }
 }
 
 export async function GET() {
