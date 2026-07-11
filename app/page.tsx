@@ -588,7 +588,7 @@ export default function Home() {
       </section>
 
       {/* HISTORICAL TIMELINE LOG */}
-      <div className="glass-panel flex flex-col gap-4 w-full">
+      <div className="glass-panel p-3 flex flex-col gap-4 w-full">
         <h2 className="text-xl font-bold text-zinc-100 pb-3 border-b border-zinc-800/60">Biometric Archives</h2>
 
         {logs.length === 0 ? (
@@ -681,7 +681,7 @@ export default function Home() {
       </div>
 
       {/* PROGRESSION ANALYTICS CHART */}
-      <div className="glass-panel  flex flex-col gap-4 w-full">
+      <div className="glass-panel p-3 flex flex-col gap-4 w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-zinc-800/60">
           <div>
             <h2 className="text-xl font-bold text-zinc-100">Telemetry Progression</h2>
@@ -858,7 +858,7 @@ export default function Home() {
       {/* DAILY LOGGER & LEGEND SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 flex flex-col gap-8">
-          <div ref={slidersSectionRef} className="glass-panel glass-panel-glow  flex flex-col gap-6">
+          <div ref={slidersSectionRef} className="glass-panel glass-panel-glow p-3 flex flex-col gap-6">
             <div className="flex justify-between items-center pb-4 border-b border-zinc-800/60">
               <div className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
