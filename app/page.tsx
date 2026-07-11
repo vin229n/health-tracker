@@ -115,6 +115,22 @@ export default function Home() {
   // References for focus scrolling
   const slidersSectionRef = useRef<HTMLDivElement>(null);
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   // Trigger Client-only mounting and load data
   useEffect(() => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -202,6 +218,7 @@ export default function Home() {
     }));
 
     setNewParamLabel("");
+    showToast(`Parameter "${label}" successfully added!`);
   };
 
   const handleRenameParameter = (id: string, newLabel: string) => {
@@ -566,13 +583,16 @@ export default function Home() {
                   aria-label={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
                 >
                   {isManagingParams ? (
-                    <span className="text-[10px] font-mono flex items-center gap-1">
+                    <span className="text-xs font-mono flex items-center gap-1.5">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                       Back to Sliders
                     </span>
                   ) : (
-                    /* Cog icon */
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span className="text-xs font-mono flex items-center gap-1.5">
+                      {/* Cog icon */}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      Edit
+                    </span>
                   )}
                 </button>
               </div>
@@ -619,7 +639,7 @@ export default function Home() {
                           type="text"
                           value={param.label}
                           onChange={(e) => handleRenameParameter(param.id, e.target.value)}
-                          className="flex-1 bg-transparent text-xs text-zinc-200 outline-none border-b border-transparent focus:border-cyan-500 pb-0.5 transition"
+                          className="flex-1 bg-transparent text-[15px] text-zinc-200 outline-none border-b border-transparent focus:border-cyan-500 pb-0.5 transition"
                         />
                         <button
                           type="button"
@@ -653,7 +673,7 @@ export default function Home() {
                           }`}
                       >
                         <div className="flex justify-between items-center text-xs">
-                          <span className={`font-semibold flex items-center gap-1.5 ${isActive ? "text-cyan-300" : "text-zinc-300"}`}>
+                          <span className={`font-semibold text-[15px] flex items-center gap-1.5 ${isActive ? "text-cyan-300" : "text-zinc-300"}`}>
                             <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
                             {param.label}
                           </span>
@@ -721,28 +741,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* SEVERITY LEGEND */}
-          <div className="glass-panel p-4 flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Severity Legend</h3>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
-                <span>0/10 - Pain Free</span>
-              </div>
-              <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                <span>1-3/10 - Mild</span>
-              </div>
-              <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
-                <span>4-6/10 - Moderate</span>
-              </div>
-              <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                <span>7-10/10 - Severe</span>
-              </div>
-            </div>
-          </div>
+
         </div>
 
         {/* RIGHT COLUMN: PROGRESSION & ARCHIVES (6 Cols) */}
@@ -921,6 +920,29 @@ export default function Home() {
         </div>
       </div>
 
+      {/* SEVERITY LEGEND */}
+      <div className="glass-panel p-4 flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Severity Legend</h3>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+            <span>0/10 - Pain Free</span>
+          </div>
+          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
+            <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+            <span>1-3/10 - Mild</span>
+          </div>
+          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
+            <span>4-6/10 - Moderate</span>
+          </div>
+          <div className="flex items-center gap-2 bg-zinc-900/40 p-2 rounded border border-zinc-800/50">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+            <span>7-10/10 - Severe</span>
+          </div>
+        </div>
+      </div>
+
       {/* HISTORICAL TIMELINE LOG */}
       <div className="glass-panel p-6 flex flex-col gap-4 w-full">
         <h2 className="text-xl font-bold text-zinc-100 pb-3 border-b border-zinc-800/60">Biometric Archives</h2>
@@ -1013,6 +1035,13 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl border border-cyan-500/30 bg-zinc-950/90 backdrop-blur-md shadow-2xl shadow-cyan-500/10 text-xs font-mono font-medium text-cyan-400 animate-slide-up">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

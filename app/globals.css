@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b; /* Dark zinc base */
+  --background: #09090b;
+  /* Dark zinc base */
   --foreground: #f4f4f5;
   --card-bg: rgba(20, 20, 25, 0.7);
   --card-border: rgba(255, 255, 255, 0.08);
@@ -28,13 +29,16 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.2);
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
@@ -66,10 +70,13 @@ body {
 
 /* Pulse animation for active highlights */
 @keyframes pulse-slow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.4;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.8;
     transform: scale(1.02);
@@ -83,7 +90,22 @@ body {
 /* Hologram grid background */
 .hologram-grid {
   background-size: 30px 30px;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(1rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
