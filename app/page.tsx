@@ -382,8 +382,8 @@ export default function Home() {
 
     if (sortedLogs.length === 0) return [];
 
-    const width = 1000;
-    const height = 300;
+    const width = 500;
+    const height = 220;
     const paddingX = 40;
     const paddingY = 30;
 
@@ -512,7 +512,7 @@ export default function Home() {
   const getChartAreaPath = (points: { x: number; y: number }[]) => {
     if (points.length === 0) return "";
     const linePath = getChartLinePath(points);
-    const height = 300;
+    const height = 220;
     const paddingY = 30;
     return `${linePath} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`;
   };
@@ -588,7 +588,7 @@ export default function Home() {
       </section>
 
       {/* HISTORICAL TIMELINE LOG */}
-      <div className="glass-panel p-6 flex flex-col gap-4 w-full">
+      <div className="glass-panel flex flex-col gap-4 w-full">
         <h2 className="text-xl font-bold text-zinc-100 pb-3 border-b border-zinc-800/60">Biometric Archives</h2>
 
         {logs.length === 0 ? (
@@ -681,7 +681,7 @@ export default function Home() {
       </div>
 
       {/* PROGRESSION ANALYTICS CHART */}
-      <div className="glass-panel p-6 flex flex-col gap-4 w-full">
+      <div className="glass-panel  flex flex-col gap-4 w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-zinc-800/60">
           <div>
             <h2 className="text-xl font-bold text-zinc-100">Telemetry Progression</h2>
@@ -722,9 +722,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="relative w-full h-[300px] bg-zinc-950/40 rounded-lg border border-zinc-900 overflow-hidden mt-2">
+        <div className="relative w-full h-[220px] bg-zinc-950/40 rounded-lg border border-zinc-900 overflow-hidden mt-2">
           {chartLines[0] && chartLines[0].points.length > 0 ? (
-            <svg className="w-full h-full" viewBox="0 0 1000 300" preserveAspectRatio="none">
+            <svg className="w-full h-full" viewBox="0 0 500 220" preserveAspectRatio="none">
               {!isMultiLine && chartLines[0] && (
                 <>
                   <defs>
@@ -738,11 +738,11 @@ export default function Home() {
               )}
 
               {Array.from({ length: 6 }).map((_, i) => {
-                const yVal = 30 + (i * 240) / 5;
+                const yVal = 30 + (i * 160) / 5;
                 const label = 10 - i * 2;
                 return (
                   <g key={i}>
-                    <line x1="40" y1={yVal} x2="960" y2={yVal} stroke="#ffffff" strokeWidth="0.5" strokeDasharray="3" className="opacity-20" />
+                    <line x1="40" y1={yVal} x2="460" y2={yVal} stroke="#ffffff" strokeWidth="0.5" strokeDasharray="3" className="opacity-20" />
                     <text x="15" y={yVal + 4} fill="#ffffff" className="text-[10px] font-mono select-none opacity-80">{label}</text>
                   </g>
                 );
@@ -808,7 +808,7 @@ export default function Home() {
                   <text
                     key={i}
                     x={pt.x}
-                    y="290"
+                    y="210"
                     textAnchor="middle"
                     fill="#ffffff"
                     className="text-[9px] font-mono select-none opacity-80"
@@ -828,9 +828,9 @@ export default function Home() {
             <div
               style={{
                 position: "absolute",
-                left: `${Math.min(90, Math.max(5, (hoveredPoint.x / 1000) * 100))}%`,
-                top: `${Math.min(230, Math.max(10, hoveredPoint.y - 45))}px`,
-                transform: "translateX(-50%)",
+                left: `${Math.min(380, Math.max(10, (hoveredPoint.x / 500) * 100))}%`,
+                top: `${Math.min(150, Math.max(10, hoveredPoint.y - 45))}px`,
+                transform: "translateX(-40%)",
               }}
               className="bg-zinc-900 border border-zinc-700/80 rounded px-2.5 py-1 text-[11px] shadow-xl text-zinc-100 backdrop-blur pointer-events-none z-10 font-mono leading-tight"
             >
@@ -858,7 +858,7 @@ export default function Home() {
       {/* DAILY LOGGER & LEGEND SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 flex flex-col gap-8">
-          <div ref={slidersSectionRef} className="glass-panel glass-panel-glow p-6 flex flex-col gap-6">
+          <div ref={slidersSectionRef} className="glass-panel glass-panel-glow  flex flex-col gap-6">
             <div className="flex justify-between items-center pb-4 border-b border-zinc-800/60">
               <div className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
