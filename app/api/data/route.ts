@@ -59,7 +59,8 @@ const getMockLogs = (): LogEntry[] => {
   });
 };
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const isVercel = process.env.VERCEL === "1";
+const DATA_DIR = isVercel ? "/tmp" : path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "data.json");
 
 async function readData() {
