@@ -182,7 +182,7 @@ export default function Home() {
       if (!res.ok) throw new Error("Failed to save logs to server");
     } catch (err) {
       console.error("Error saving logs:", err);
-      alert("Failed to save logs to the server.");
+      showToast("Failed to save logs to the server.", "error");
     }
   };
 
@@ -197,7 +197,7 @@ export default function Home() {
       if (!res.ok) throw new Error("Failed to save parameters to server");
     } catch (err) {
       console.error("Error saving parameters:", err);
-      alert("Failed to save parameters to the server.");
+      showToast("Failed to save parameters to the server.", "error");
     }
   };
 
@@ -228,7 +228,7 @@ export default function Home() {
 
   const handleDeleteParameter = (id: string) => {
     if (parameters.length <= 1) {
-      alert("You must keep at least one tracking parameter.");
+      showToast("You must keep at least one tracking parameter.", "error");
       return;
     }
     if (confirm(`Are you sure you want to stop tracking "${parameters.find(p => p.id === id)?.label || id}"? Existing historical logs won't be deleted, but this parameter will no longer be active.`)) {
@@ -288,7 +288,7 @@ export default function Home() {
     setEditingId(null);
 
     // Pulse animation or feedback
-    alert(`Log successfully saved for ${date}`);
+    showToast(`Log successfully saved for ${date}!`, "success");
   };
 
   const handleDeleteLog = (id: string) => {
@@ -328,12 +328,12 @@ export default function Home() {
         const imported = JSON.parse(event.target?.result as string);
         if (Array.isArray(imported) && imported.length > 0 && imported[0].painLevels) {
           saveLogsToStorage(imported);
-          alert(`Successfully imported ${imported.length} pain log entries!`);
+          showToast(`Successfully imported ${imported.length} pain log entries!`, "success");
         } else {
-          alert("Invalid data format. Please upload a valid JSON file generated from this application.");
+          showToast("Invalid data format. Please upload a valid JSON file generated from this application.", "error");
         }
       } catch (err) {
-        alert("Error parsing JSON file.");
+        showToast("Error parsing JSON file.", "error");
       }
     };
     reader.readAsText(file);
