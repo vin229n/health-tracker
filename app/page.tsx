@@ -115,40 +115,28 @@ export default function Home() {
   // References for focus scrolling
   const slidersSectionRef = useRef<HTMLDivElement>(null);
 
-  // Trigger Client-only mounting
+  // Trigger Client-only mounting and load data
   useEffect(() => {
-    setMounted(true);
     const todayStr = new Date().toISOString().split("T")[0];
     setDate(todayStr);
 
-    // Load parameters
-    const savedParams = localStorage.getItem("biosentry_parameters");
-    let activeParams = DEFAULT_PARAMETERS;
-    if (savedParams) {
-      try {
-        activeParams = JSON.parse(savedParams);
-      } catch (e) {
-        activeParams = DEFAULT_PARAMETERS;
-      }
-    } else {
-      localStorage.setItem("biosentry_parameters", JSON.stringify(DEFAULT_PARAMETERS));
-    }
-    setParameters(activeParams);
-
-    const savedLogs = localStorage.getItem("biosentry_pain_logs");
-    if (savedLogs) {
-      try {
-        setLogs(JSON.parse(savedLogs));
-      } catch (e) {
-        const initial = getMockLogs();
-        setLogs(initial);
-        localStorage.setItem("biosentry_pain_logs", JSON.stringify(initial));
-      }
-    } else {
-      const initial = getMockLogs();
-      setLogs(initial);
-      localStorage.setItem("biosentry_pain_logs", JSON.stringify(initial));
-    }
+    fetch("/api/data")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch data");
+        return res.json();
+      })
+      .then((data) => {
+        setParameters(data.parameters || []);
+        setLogs(data.logs || []);
+        setMounted(true);
+      })
+      .catch((err) => {
+        console.error("Error loading server data:", err);
+        // Set empty states on failure so the page still works
+        setParameters([]);
+        setLogs([]);
+        setMounted(true);
+      });
   }, []);
 
   // Initialize slider inputs for loaded parameters
@@ -166,15 +154,35 @@ export default function Home() {
     }
   }, [parameters]);
 
-  // Save logs to local storage
-  const saveLogsToStorage = (updatedLogs: LogEntry[]) => {
+  // Save logs to storage
+  const saveLogsToStorage = async (updatedLogs: LogEntry[]) => {
     setLogs(updatedLogs);
-    localStorage.setItem("biosentry_pain_logs", JSON.stringify(updatedLogs));
+    try {
+      const res = await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logs: updatedLogs }),
+      });
+      if (!res.ok) throw new Error("Failed to save logs to server");
+    } catch (err) {
+      console.error("Error saving logs:", err);
+      alert("Failed to save logs to the server.");
+    }
   };
 
-  const saveParameters = (updatedParams: BiometricParameter[]) => {
+  const saveParameters = async (updatedParams: BiometricParameter[]) => {
     setParameters(updatedParams);
-    localStorage.setItem("biosentry_parameters", JSON.stringify(updatedParams));
+    try {
+      const res = await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parameters: updatedParams }),
+      });
+      if (!res.ok) throw new Error("Failed to save parameters to server");
+    } catch (err) {
+      console.error("Error saving parameters:", err);
+      alert("Failed to save parameters to the server.");
+    }
   };
 
   const handleAddParameter = (e: React.FormEvent) => {

@@ -1,0 +1,134 @@
+{
+  "parameters": [
+    {
+      "id": "rightShoulder",
+      "label": "Right Shoulder"
+    },
+    {
+      "id": "rightArm",
+      "label": "Right Arm Muscle"
+    },
+    {
+      "id": "leftShoulder",
+      "label": "Left Shoulder"
+    },
+    {
+      "id": "leftArm",
+      "label": "Left Arm (Anterior Deltoid)"
+    },
+    {
+      "id": "upperBack",
+      "label": "Upper Back (Scapula)"
+    },
+    {
+      "id": "lowerBack",
+      "label": "Lower Back"
+    }
+  ],
+  "logs": [
+    {
+      "id": "mock-0",
+      "date": "2026-07-04",
+      "painLevels": {
+        "rightShoulder": 2,
+        "rightArm": 3,
+        "leftShoulder": 5,
+        "leftArm": 7,
+        "upperBack": 4,
+        "lowerBack": 1
+      },
+      "notes": "Felt considerable soreness during upper body movement."
+    },
+    {
+      "id": "mock-1",
+      "date": "2026-07-05",
+      "painLevels": {
+        "rightShoulder": 2,
+        "rightArm": 3,
+        "leftShoulder": 5,
+        "leftArm": 7,
+        "upperBack": 4,
+        "lowerBack": 1
+      },
+      "notes": "Stiffness is noticeable in shoulders and upper back. Rested today."
+    },
+    {
+      "id": "mock-2",
+      "date": "2026-07-06",
+      "painLevels": {
+        "rightShoulder": 2,
+        "rightArm": 2,
+        "leftShoulder": 4,
+        "leftArm": 6,
+        "upperBack": 3,
+        "lowerBack": 1
+      },
+      "notes": "Slight improvement. Practiced gentle mobility exercises."
+    },
+    {
+      "id": "mock-3",
+      "date": "2026-07-07",
+      "painLevels": {
+        "rightShoulder": 1,
+        "rightArm": 2,
+        "leftShoulder": 3,
+        "leftArm": 5,
+        "upperBack": 3,
+        "lowerBack": 1
+      },
+      "notes": "Left arm (anterior deltoid) feels slightly less inflamed."
+    },
+    {
+      "id": "mock-4",
+      "date": "2026-07-08",
+      "painLevels": {
+        "rightShoulder": 1,
+        "rightArm": 1,
+        "leftShoulder": 3,
+        "leftArm": 4,
+        "upperBack": 2,
+        "lowerBack": 0
+      },
+      "notes": "Upper back tension is decreasing. Left shoulder pain reduced."
+    },
+    {
+      "id": "mock-5",
+      "date": "2026-07-09",
+      "painLevels": {
+        "rightShoulder": 1,
+        "rightArm": 1,
+        "leftShoulder": 2,
+        "leftArm": 3,
+        "upperBack": 2,
+        "lowerBack": 0
+      },
+      "notes": "Felt good today. Pain levels are decreasing overall."
+    },
+    {
+      "id": "mock-6",
+      "date": "2026-07-10",
+      "painLevels": {
+        "rightShoulder": 0,
+        "rightArm": 0,
+        "leftShoulder": 1,
+        "leftArm": 2,
+        "upperBack": 1,
+        "lowerBack": 0
+      },
+      "notes": "Progress is steady. Right shoulder pain is completely resolved."
+    },
+    {
+      "id": "1783742327826",
+      "date": "2026-07-11",
+      "painLevels": {
+        "rightShoulder": 0,
+        "rightArm": 1,
+        "leftShoulder": 3,
+        "leftArm": 5,
+        "upperBack": 2,
+        "lowerBack": 0
+      },
+      "notes": "Verification log test note"
+    }
+  ]
+}
