@@ -85,12 +85,12 @@ const getMockLogs = (): LogEntry[] => {
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  
+
   // Input states
   const [painLevels, setPainLevels] = useState<PainLevels>(INITIAL_PAIN_LEVELS);
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState("");
-  
+
   // Selection states
   const [activePart, setActivePart] = useState<keyof PainLevels | null>(null);
   const [chartView, setChartView] = useState<"all" | "average" | keyof PainLevels>("all");
@@ -192,10 +192,10 @@ export default function Home() {
 
     const id = "param_" + Date.now();
     const newParam: BiometricParameter = { id, label };
-    
+
     const updated = [...parameters, newParam];
     saveParameters(updated);
-    
+
     setPainLevels(prev => ({
       ...prev,
       [id]: 0,
@@ -269,7 +269,7 @@ export default function Home() {
     saveLogsToStorage(updatedLogs);
     setNotes("");
     setEditingId(null);
-    
+
     // Pulse animation or feedback
     alert(`Log successfully saved for ${date}`);
   };
@@ -286,7 +286,7 @@ export default function Home() {
     setNotes(entry.notes);
     setDate(entry.date);
     setEditingId(entry.id);
-    
+
     // Focus the inputs
     slidersSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
@@ -403,7 +403,7 @@ export default function Home() {
     }
 
     const latest = logs[logs.length - 1];
-    
+
     // Average today
     let todaySum = 0;
     let todayCount = 0;
@@ -431,7 +431,7 @@ export default function Home() {
     let trendStatus = "Stable";
     if (logs.length >= 7) {
       const pastLog = logs[logs.length - 7];
-      
+
       let pastSum = 0;
       let pastCount = 0;
       parameters.forEach(p => {
@@ -441,7 +441,7 @@ export default function Home() {
         }
       });
       const pastAvg = pastCount > 0 ? pastSum / pastCount : 0;
-      
+
       if (pastAvg > 0) {
         const changePercent = ((avgToday - pastAvg) / pastAvg) * 100;
         weeklyChange = `${Math.abs(Math.round(changePercent))}%`;
@@ -493,29 +493,29 @@ export default function Home() {
             <span className="text-xs font-mono tracking-widest text-zinc-500 uppercase">SYSTEM ACTIVE</span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-500 bg-clip-text text-transparent">
-            BioSentry Pain & Progression
+            Poojs's Pain Tracking
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          {/* <p className="text-sm text-zinc-400 mt-1">
             Holographic biometric monitoring of upper-body muscular dynamics
-          </p>
+          </p> */}
         </div>
 
-        <div className="flex gap-3">
+        {/* <div className="flex gap-3">
           <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60 cursor-pointer text-xs font-medium transition">
             <span>Import Logs</span>
             <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
-            {/* Upload SVG */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
           </label>
           <button
             onClick={handleExportData}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60 text-xs font-medium transition"
           >
             <span>Export Data</span>
-            {/* Download SVG */}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
           </button>
-        </div>
+        </div> */}
       </header>
 
       {/* METRICS DASHBOARD GRID */}
@@ -545,30 +545,38 @@ export default function Home() {
 
       {/* MAIN CONTENT SPLIT PANE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* LEFT COLUMN: DAILY LOGGER & LEGEND (6 Cols) */}
         <div className="lg:col-span-6 flex flex-col gap-8">
-          
+
           {/* DAILY LOGGER PANEL */}
           <div ref={slidersSectionRef} className="glass-panel glass-panel-glow p-6 flex flex-col gap-6">
             <div className="flex justify-between items-center pb-4 border-b border-zinc-800/60">
               <div className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
                   {/* Activity SVG */}
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
                   {editingId ? "Edit Telemetry Log" : "Daily Biometric Input"}
                 </h2>
                 <button
                   type="button"
                   onClick={() => setIsManagingParams(!isManagingParams)}
-                  className="text-left text-[10px] font-mono text-cyan-500 hover:text-cyan-400 transition flex items-center gap-1 cursor-pointer w-fit"
+                  className="text-left text-cyan-500 hover:text-cyan-400 transition flex items-center cursor-pointer w-fit"
+                  title={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
+                  aria-label={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
                 >
-                  {/* Cog icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                  <span>{isManagingParams ? "← Back to Sliders" : "Configure Tracking Inputs"}</span>
+                  {isManagingParams ? (
+                    <span className="text-[10px] font-mono flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                      Back to Sliders
+                    </span>
+                  ) : (
+                    /* Cog icon */
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  )}
                 </button>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <span className="text-xs text-zinc-400">Date:</span>
                 <input
@@ -620,7 +628,7 @@ export default function Home() {
                           title="Delete Parameter"
                         >
                           {/* Trash Icon */}
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
                     ))}
@@ -639,11 +647,10 @@ export default function Home() {
                       <div
                         key={param.id}
                         onClick={() => setActivePart(param.id)}
-                        className={`flex flex-col gap-2 p-3 rounded-lg border transition-all cursor-pointer ${
-                          isActive 
-                            ? "border-cyan-500 bg-cyan-950/10 shadow-lg shadow-cyan-500/5 scale-[1.01]" 
-                            : "border-zinc-800/80 bg-zinc-900/30 hover:border-zinc-700/80"
-                        }`}
+                        className={`flex flex-col gap-2 p-3 rounded-lg border transition-all cursor-pointer ${isActive
+                          ? "border-cyan-500 bg-cyan-950/10 shadow-lg shadow-cyan-500/5 scale-[1.01]"
+                          : "border-zinc-800/80 bg-zinc-900/30 hover:border-zinc-700/80"
+                          }`}
                       >
                         <div className="flex justify-between items-center text-xs">
                           <span className={`font-semibold flex items-center gap-1.5 ${isActive ? "text-cyan-300" : "text-zinc-300"}`}>
@@ -654,7 +661,7 @@ export default function Home() {
                             {val}/10
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center gap-3 mt-1" onClick={(e) => e.stopPropagation()}>
                           <span className="text-[10px] text-zinc-500 font-mono">0</span>
                           <input
@@ -706,7 +713,7 @@ export default function Home() {
                     className="px-5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 hover:scale-[1.02] transition-all flex items-center gap-2"
                   >
                     {/* Save Check Icon */}
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                     <span>{editingId ? "Update Telemetry" : "Commit Biometric Log"}</span>
                   </button>
                 </div>
@@ -768,17 +775,15 @@ export default function Home() {
                 <div className="flex bg-zinc-900 rounded border border-zinc-800 p-0.5 text-xs">
                   <button
                     onClick={() => setTimeRange("7d")}
-                    className={`px-3 py-1 rounded transition ${
-                      timeRange === "7d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
-                    }`}
+                    className={`px-3 py-1 rounded transition ${timeRange === "7d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
+                      }`}
                   >
                     7 Logs
                   </button>
                   <button
                     onClick={() => setTimeRange("30d")}
-                    className={`px-3 py-1 rounded transition ${
-                      timeRange === "30d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
-                    }`}
+                    className={`px-3 py-1 rounded transition ${timeRange === "30d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
+                      }`}
                   >
                     30 Logs
                   </button>
@@ -920,94 +925,94 @@ export default function Home() {
       <div className="glass-panel p-6 flex flex-col gap-4 w-full">
         <h2 className="text-xl font-bold text-zinc-100 pb-3 border-b border-zinc-800/60">Biometric Archives</h2>
 
-            {logs.length === 0 ? (
-              <div className="text-center py-8 text-xs text-zinc-500 font-mono uppercase">
-                Zero Logs Committed. Add entries above.
-              </div>
-            ) : (
-              <div className="overflow-x-auto w-full max-h-[360px] border border-zinc-800/60 rounded-xl">
-                <table className="w-full text-left text-xs font-mono border-collapse">
-                  <thead>
-                    <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-10">
-                      <th className="p-3 whitespace-nowrap">Date</th>
-                      <th className="p-3 text-center whitespace-nowrap">Avg</th>
-                      {parameters.map((p, index) => (
-                        <th key={p.id} className="p-3 text-center whitespace-nowrap">
-                          <span className="flex items-center justify-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                            {p.label}
-                          </span>
-                        </th>
-                      ))}
-                      <th className="p-3 whitespace-nowrap min-w-[150px]">Notes</th>
-                      <th className="p-3 text-center whitespace-nowrap">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/60">
-                    {[...logs].reverse().map((entry) => {
-                      let sum = 0;
-                      let count = 0;
-                      parameters.forEach((p) => {
-                        if (entry.painLevels && entry.painLevels[p.id] !== undefined) {
-                          sum += entry.painLevels[p.id];
-                          count++;
-                        }
-                      });
-                      const avgIndex = count > 0 ? Number((sum / count).toFixed(1)) : 0;
-
-                      return (
-                        <tr key={entry.id} className="hover:bg-zinc-900/30 transition-colors">
-                          {/* Date */}
-                          <td className="p-3 whitespace-nowrap font-bold text-zinc-300">
-                            {entry.date}
-                          </td>
-                          {/* Avg Index */}
-                          <td className="p-3 text-center font-bold text-cyan-400 whitespace-nowrap">
-                            {avgIndex}/10
-                          </td>
-                          {/* Parameter Values */}
-                          {parameters.map((param) => {
-                            const val = (entry.painLevels && entry.painLevels[param.id]) ?? 0;
-                            const styles = getSeverityStyles(val);
-                            return (
-                              <td key={param.id} className="p-3 text-center whitespace-nowrap">
-                                <span className={`px-2 py-0.5 rounded font-bold ${styles.bg} ${styles.text} border ${styles.border}`}>
-                                  {val}
-                                </span>
-                              </td>
-                            );
-                          })}
-                          {/* Notes */}
-                          <td className="p-3 text-zinc-400 max-w-[200px] truncate italic" title={entry.notes}>
-                            {entry.notes || "-"}
-                          </td>
-                          {/* Actions */}
-                          <td className="p-3">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                onClick={() => handleEditLog(entry)}
-                                className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition"
-                                title="Edit entry"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"/></svg>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteLog(entry.id)}
-                                className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-400 transition"
-                                title="Delete entry"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+        {logs.length === 0 ? (
+          <div className="text-center py-8 text-xs text-zinc-500 font-mono uppercase">
+            Zero Logs Committed. Add entries above.
           </div>
-        </div>
-      );
+        ) : (
+          <div className="overflow-x-auto w-full max-h-[360px] border border-zinc-800/60 rounded-xl">
+            <table className="w-full text-left text-xs font-mono border-collapse">
+              <thead>
+                <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-10">
+                  <th className="p-3 whitespace-nowrap">Date</th>
+                  <th className="p-3 text-center whitespace-nowrap">Avg</th>
+                  {parameters.map((p, index) => (
+                    <th key={p.id} className="p-3 text-center whitespace-nowrap">
+                      <span className="flex items-center justify-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
+                        {p.label}
+                      </span>
+                    </th>
+                  ))}
+                  <th className="p-3 whitespace-nowrap min-w-[150px]">Notes</th>
+                  <th className="p-3 text-center whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/60">
+                {[...logs].reverse().map((entry) => {
+                  let sum = 0;
+                  let count = 0;
+                  parameters.forEach((p) => {
+                    if (entry.painLevels && entry.painLevels[p.id] !== undefined) {
+                      sum += entry.painLevels[p.id];
+                      count++;
+                    }
+                  });
+                  const avgIndex = count > 0 ? Number((sum / count).toFixed(1)) : 0;
+
+                  return (
+                    <tr key={entry.id} className="hover:bg-zinc-900/30 transition-colors">
+                      {/* Date */}
+                      <td className="p-3 whitespace-nowrap font-bold text-zinc-300">
+                        {entry.date}
+                      </td>
+                      {/* Avg Index */}
+                      <td className="p-3 text-center font-bold text-cyan-400 whitespace-nowrap">
+                        {avgIndex}/10
+                      </td>
+                      {/* Parameter Values */}
+                      {parameters.map((param) => {
+                        const val = (entry.painLevels && entry.painLevels[param.id]) ?? 0;
+                        const styles = getSeverityStyles(val);
+                        return (
+                          <td key={param.id} className="p-3 text-center whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded font-bold ${styles.bg} ${styles.text} border ${styles.border}`}>
+                              {val}
+                            </span>
+                          </td>
+                        );
+                      })}
+                      {/* Notes */}
+                      <td className="p-3 text-zinc-400 max-w-[200px] truncate italic" title={entry.notes}>
+                        {entry.notes || "-"}
+                      </td>
+                      {/* Actions */}
+                      <td className="p-3">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleEditLog(entry)}
+                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition"
+                            title="Edit entry"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z" /></svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLog(entry.id)}
+                            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-400 transition"
+                            title="Delete entry"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
