@@ -123,6 +123,7 @@ export default function Home() {
   const [chartView, setChartView] = useState<"all" | "average" | keyof PainLevels>("all");
   const [timeRange, setTimeRange] = useState<"7d" | "30d">("7d");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isInputExpanded, setIsInputExpanded] = useState(true);
 
   // Dynamic parameters state
   const [parameters, setParameters] = useState<BiometricParameter[]>([]);
@@ -858,172 +859,193 @@ export default function Home() {
       {/* DAILY LOGGER & LEGEND SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 flex flex-col gap-8">
-          <div ref={slidersSectionRef} className="glass-panel glass-panel-glow p-3 flex flex-col gap-6">
-            <div className="flex justify-between items-center pb-4 border-b border-zinc-800/60">
+          <div ref={slidersSectionRef} className={`glass-panel glass-panel-glow p-3 flex flex-col ${isInputExpanded ? 'gap-6' : 'gap-0'}`}>
+            <div className={`flex justify-between items-center ${isInputExpanded ? 'pb-4 border-b border-zinc-800/60' : ''}`}>
               <div className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
                   {editingId ? "Edit Telemetry Log" : "Daily Biometric Input"}
                 </h2>
+                {isInputExpanded && (
+                  <button
+                    type="button"
+                    onClick={() => setIsManagingParams(!isManagingParams)}
+                    className="text-left text-cyan-500 hover:text-cyan-400 transition flex items-center cursor-pointer w-fit"
+                    title={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
+                    aria-label={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
+                  >
+                    {isManagingParams ? (
+                      <span className="text-xs font-mono flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        Back to Sliders
+                      </span>
+                    ) : (
+                      <span className="text-xs font-mono flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        Edit
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                {isInputExpanded && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-400">Date:</span>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition"
+                    />
+                  </div>
+                )}
                 <button
                   type="button"
-                  onClick={() => setIsManagingParams(!isManagingParams)}
-                  className="text-left text-cyan-500 hover:text-cyan-400 transition flex items-center cursor-pointer w-fit"
-                  title={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
-                  aria-label={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
+                  onClick={() => setIsInputExpanded(!isInputExpanded)}
+                  className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition flex items-center justify-center cursor-pointer"
+                  title={isInputExpanded ? "Minimize Daily Input" : "Expand Daily Input"}
+                  aria-label={isInputExpanded ? "Minimize Daily Input" : "Expand Daily Input"}
                 >
-                  {isManagingParams ? (
-                    <span className="text-xs font-mono flex items-center gap-1.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                      Back to Sliders
-                    </span>
+                  {isInputExpanded ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
                   ) : (
-                    <span className="text-xs font-mono flex items-center gap-1.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      Edit
-                    </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                   )}
                 </button>
               </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400">Date:</span>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition"
-                />
-              </div>
             </div>
 
-            {isManagingParams ? (
-              <div className="flex flex-col gap-5">
-                <div className="border-b border-zinc-800/60 pb-4">
-                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Add Custom Parameter</h3>
-                  <form onSubmit={handleAddParameter} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="E.g., Left Knee, Neck, Chest, Sleep Quality..."
-                      value={newParamLabel}
-                      onChange={(e) => setNewParamLabel(e.target.value)}
-                      className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition placeholder-zinc-600"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      + Add Parameter
-                    </button>
-                  </form>
-                </div>
+            {isInputExpanded && (
+              isManagingParams ? (
+                <div className="flex flex-col gap-5">
+                  <div className="border-b border-zinc-800/60 pb-4">
+                    <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Add Custom Parameter</h3>
+                    <form onSubmit={handleAddParameter} className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="E.g., Left Knee, Neck, Chest, Sleep Quality..."
+                        value={newParamLabel}
+                        onChange={(e) => setNewParamLabel(e.target.value)}
+                        className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition placeholder-zinc-600"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        + Add Parameter
+                      </button>
+                    </form>
+                  </div>
 
-                <div>
-                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Edit Existing Parameters</h3>
-                  <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
-                    {parameters.map((param, index) => (
-                      <div key={param.id} className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 p-2.5 rounded-lg">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                        <input
-                          type="text"
-                          value={param.label}
-                          onChange={(e) => handleRenameParameter(param.id, e.target.value)}
-                          className="flex-1 bg-transparent text-[15px] text-zinc-200 outline-none border-b border-transparent focus:border-cyan-500 pb-0.5 transition"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteParameter(param.id)}
-                          className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800/80 transition"
-                          title="Delete Parameter"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
-                      </div>
-                    ))}
+                  <div>
+                    <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Edit Existing Parameters</h3>
+                    <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+                      {parameters.map((param, index) => (
+                        <div key={param.id} className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 p-2.5 rounded-lg">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
+                          <input
+                            type="text"
+                            value={param.label}
+                            onChange={(e) => handleRenameParameter(param.id, e.target.value)}
+                            className="flex-1 bg-transparent text-[15px] text-zinc-200 outline-none border-b border-transparent focus:border-cyan-500 pb-0.5 transition"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteParameter(param.id)}
+                            className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800/80 transition"
+                            title="Delete Parameter"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <form onSubmit={handleSaveLog} className="flex flex-col gap-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {parameters.map((param, index) => {
-                    const val = painLevels[param.id] ?? 0;
-                    const severity = getSeverityStyles(val);
-                    const isActive = activePart === param.id;
+              ) : (
+                <form onSubmit={handleSaveLog} className="flex flex-col gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {parameters.map((param, index) => {
+                      const val = painLevels[param.id] ?? 0;
+                      const severity = getSeverityStyles(val);
+                      const isActive = activePart === param.id;
 
-                    return (
-                      <div
-                        key={param.id}
-                        onClick={() => setActivePart(param.id)}
-                        className={`flex flex-col gap-2 p-3 rounded-lg border transition-all cursor-pointer ${isActive
-                          ? "border-cyan-500 bg-cyan-950/10 shadow-lg shadow-cyan-500/5 scale-[1.01]"
-                          : "border-zinc-800/80 bg-zinc-900/30 hover:border-zinc-700/80"
-                          }`}
+                      return (
+                        <div
+                          key={param.id}
+                          onClick={() => setActivePart(param.id)}
+                          className={`flex flex-col gap-2 p-3 rounded-lg border transition-all cursor-pointer ${isActive
+                            ? "border-cyan-500 bg-cyan-950/10 shadow-lg shadow-cyan-500/5 scale-[1.01]"
+                            : "border-zinc-800/80 bg-zinc-900/30 hover:border-zinc-700/80"
+                            }`}
+                        >
+                          <div className="flex justify-between items-center text-xs">
+                            <span className={`font-semibold text-[15px] flex items-center gap-1.5 ${isActive ? "text-cyan-300" : "text-zinc-300"}`}>
+                              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
+                              {param.label}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded font-mono font-bold ${severity.bg} ${severity.text} border ${severity.border}`}>
+                              {val}/10
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-1" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-[10px] text-zinc-500 font-mono">0</span>
+                            <input
+                              type="range"
+                              min="0"
+                              max="10"
+                              step="1"
+                              value={val}
+                              onChange={(e) => handleSliderChange(param.id, parseInt(e.target.value))}
+                              className="flex-1 accent-cyan-400 bg-zinc-800 rounded-lg appearance-none h-1.5 cursor-pointer outline-none"
+                            />
+                            <span className="text-[10px] text-zinc-500 font-mono">10</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-zinc-400">Daily Symptoms & Notes</label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="E.g., Stiffness after chest day, anterior deltoid felt tight during push-ups, slept awkwardly..."
+                      rows={2}
+                      className="w-full bg-zinc-900/80 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition resize-none placeholder-zinc-600"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-2">
+                    {editingId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(null);
+                          setNotes("");
+                          const resetLevels: Record<string, number> = {};
+                          parameters.forEach(p => { resetLevels[p.id] = 0; });
+                          setPainLevels(resetLevels);
+                        }}
+                        className="px-4 py-2 rounded-lg text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition"
                       >
-                        <div className="flex justify-between items-center text-xs">
-                          <span className={`font-semibold text-[15px] flex items-center gap-1.5 ${isActive ? "text-cyan-300" : "text-zinc-300"}`}>
-                            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                            {param.label}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded font-mono font-bold ${severity.bg} ${severity.text} border ${severity.border}`}>
-                            {val}/10
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-3 mt-1" onClick={(e) => e.stopPropagation()}>
-                          <span className="text-[10px] text-zinc-500 font-mono">0</span>
-                          <input
-                            type="range"
-                            min="0"
-                            max="10"
-                            step="1"
-                            value={val}
-                            onChange={(e) => handleSliderChange(param.id, parseInt(e.target.value))}
-                            className="flex-1 accent-cyan-400 bg-zinc-800 rounded-lg appearance-none h-1.5 cursor-pointer outline-none"
-                          />
-                          <span className="text-[10px] text-zinc-500 font-mono">10</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold text-zinc-400">Daily Symptoms & Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="E.g., Stiffness after chest day, anterior deltoid felt tight during push-ups, slept awkwardly..."
-                    rows={2}
-                    className="w-full bg-zinc-900/80 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition resize-none placeholder-zinc-600"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 mt-2">
-                  {editingId && (
+                        Cancel Edit
+                      </button>
+                    )}
                     <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(null);
-                        setNotes("");
-                        const resetLevels: Record<string, number> = {};
-                        parameters.forEach(p => { resetLevels[p.id] = 0; });
-                        setPainLevels(resetLevels);
-                      }}
-                      className="px-4 py-2 rounded-lg text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition"
+                      type="submit"
+                      className="px-5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 hover:scale-[1.02] transition-all flex items-center gap-2"
                     >
-                      Cancel Edit
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                      <span>{editingId ? "Update Telemetry" : "Commit Biometric Log"}</span>
                     </button>
-                  )}
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 hover:scale-[1.02] transition-all flex items-center gap-2"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                    <span>{editingId ? "Update Telemetry" : "Commit Biometric Log"}</span>
-                  </button>
-                </div>
-              </form>
+                  </div>
+                </form>
+              )
             )}
           </div>
         </div>
