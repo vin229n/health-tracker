@@ -596,7 +596,7 @@ export default function Home() {
             Zero Logs Committed. Add entries above.
           </div>
         ) : (
-          <div className="overflow-x-auto w-full max-h-[360px] border border-zinc-800/60 rounded-xl">
+          <div className="overflow-x-auto w-full max-h-[600px] border border-zinc-800/60 rounded-xl">
             <table className="w-full text-left text-sm md:text-base font-mono border-collapse">
               <thead>
                 <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-20">
