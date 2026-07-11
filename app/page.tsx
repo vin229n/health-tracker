@@ -382,8 +382,8 @@ export default function Home() {
 
     if (sortedLogs.length === 0) return [];
 
-    const width = 500;
-    const height = 220;
+    const width = 1000;
+    const height = 300;
     const paddingX = 40;
     const paddingY = 30;
 
@@ -512,7 +512,7 @@ export default function Home() {
   const getChartAreaPath = (points: { x: number; y: number }[]) => {
     if (points.length === 0) return "";
     const linePath = getChartLinePath(points);
-    const height = 220;
+    const height = 300;
     const paddingY = 30;
     return `${linePath} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`;
   };
@@ -680,18 +680,188 @@ export default function Home() {
         )}
       </div>
 
-      {/* MAIN CONTENT SPLIT PANE */}
+      {/* PROGRESSION ANALYTICS CHART */}
+      <div className="glass-panel p-6 flex flex-col gap-4 w-full">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-zinc-800/60">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-100">Telemetry Progression</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Analytic visual trends of pain signals</p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={chartView}
+              onChange={(e) => setChartView(e.target.value as any)}
+              className="bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 px-2 py-1.5 rounded outline-none focus:border-cyan-500 cursor-pointer"
+            >
+              <option value="all">All Parameters ({parameters.length} Lines)</option>
+              <option value="average">Average Index</option>
+              {parameters.map((param) => (
+                <option key={param.id} value={param.id}>
+                  {param.label}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex bg-zinc-900 rounded border border-zinc-800 p-0.5 text-xs">
+              <button
+                onClick={() => setTimeRange("7d")}
+                className={`px-3 py-1 rounded transition ${timeRange === "7d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+              >
+                7 Logs
+              </button>
+              <button
+                onClick={() => setTimeRange("30d")}
+                className={`px-3 py-1 rounded transition ${timeRange === "30d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+              >
+                30 Logs
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative w-full h-[300px] bg-zinc-950/40 rounded-lg border border-zinc-900 overflow-hidden mt-2">
+          {chartLines[0] && chartLines[0].points.length > 0 ? (
+            <svg className="w-full h-full" viewBox="0 0 1000 300" preserveAspectRatio="none">
+              {!isMultiLine && chartLines[0] && (
+                <>
+                  <defs>
+                    <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={chartLines[0].color} stopOpacity="0.4" />
+                      <stop offset="100%" stopColor={chartLines[0].color} stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={getChartAreaPath(chartLines[0].points)} fill="url(#chart-grad)" className="transition-all duration-300" />
+                </>
+              )}
+
+              {Array.from({ length: 6 }).map((_, i) => {
+                const yVal = 30 + (i * 240) / 5;
+                const label = 10 - i * 2;
+                return (
+                  <g key={i}>
+                    <line x1="40" y1={yVal} x2="960" y2={yVal} stroke="#ffffff" strokeWidth="0.5" strokeDasharray="3" className="opacity-20" />
+                    <text x="15" y={yVal + 4} fill="#ffffff" className="text-[10px] font-mono select-none opacity-80">{label}</text>
+                  </g>
+                );
+              })}
+
+              {chartLines.map((line) => (
+                <path
+                  key={line.key}
+                  d={getChartLinePath(line.points)}
+                  fill="none"
+                  stroke={line.color}
+                  strokeWidth={isMultiLine ? "2.5" : "3.5"}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-all duration-300"
+                />
+              ))}
+
+              {chartLines.map((line) => (
+                <g key={`nodes-${line.key}`}>
+                  {line.points.map((pt, i) => (
+                    <circle
+                      key={i}
+                      cx={pt.x}
+                      cy={pt.y}
+                      r={isMultiLine ? "3.5" : "5"}
+                      onMouseEnter={() => setHoveredPoint({
+                        ...pt,
+                        label: line.label,
+                        color: line.color,
+                      })}
+                      onMouseLeave={() => setHoveredPoint(null)}
+                      fill={line.color}
+                      className="stroke-zinc-950 stroke-[2px] cursor-pointer hover:scale-125 transition-transform"
+                    />
+                  ))}
+                </g>
+              ))}
+
+              {chartLines[0] && chartLines[0].points.map((pt, i) => {
+                const pointsCount = chartLines[0].points.length;
+                const shouldShowLabel = i === 0 || i === pointsCount - 1 || (pointsCount > 5 && i === Math.floor(pointsCount / 2));
+                if (!shouldShowLabel) return null;
+
+                let label = pt.date;
+                let dateObj: Date | null = null;
+                if (pt.date.includes("-")) {
+                  const dateParts = pt.date.split("-");
+                  if (dateParts.length === 3) {
+                    const [year, month, day] = dateParts.map(Number);
+                    dateObj = new Date(year, month - 1, day);
+                  }
+                } else {
+                  dateObj = new Date(pt.date);
+                }
+                if (dateObj && !isNaN(dateObj.getTime())) {
+                  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+                  const d = String(dateObj.getDate()).padStart(2, "0");
+                  label = `${m}/${d}`;
+                }
+
+                return (
+                  <text
+                    key={i}
+                    x={pt.x}
+                    y="290"
+                    textAnchor="middle"
+                    fill="#ffffff"
+                    className="text-[9px] font-mono select-none opacity-80"
+                  >
+                    {label}
+                  </text>
+                );
+              })}
+            </svg>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500 font-mono">
+              NO CHRONOLOGICAL BIOMETRIC DATA TO PLOT
+            </div>
+          )}
+
+          {hoveredPoint && (
+            <div
+              style={{
+                position: "absolute",
+                left: `${Math.min(90, Math.max(5, (hoveredPoint.x / 1000) * 100))}%`,
+                top: `${Math.min(230, Math.max(10, hoveredPoint.y - 45))}px`,
+                transform: "translateX(-50%)",
+              }}
+              className="bg-zinc-900 border border-zinc-700/80 rounded px-2.5 py-1 text-[11px] shadow-xl text-zinc-100 backdrop-blur pointer-events-none z-10 font-mono leading-tight"
+            >
+              <div className="font-bold flex items-center gap-1.5" style={{ color: hoveredPoint.color || "#22d3ee" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: hoveredPoint.color || "#22d3ee" }} />
+                <span>{hoveredPoint.label || "Pain Index"}: {hoveredPoint.value}</span>
+              </div>
+              <div className="text-zinc-500 text-[9px] mt-0.5">{hoveredPoint.date}</div>
+            </div>
+          )}
+        </div>
+
+        {isMultiLine && (
+          <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center mt-2 px-2 text-[10px] font-mono text-zinc-400">
+            {parameters.map((param, index) => (
+              <div key={param.id} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
+                <span>{param.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* DAILY LOGGER & LEGEND SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-        {/* LEFT COLUMN: DAILY LOGGER & LEGEND (6 Cols) */}
-        <div className="lg:col-span-6 flex flex-col gap-8">
-
-          {/* DAILY LOGGER PANEL */}
+        <div className="lg:col-span-8 flex flex-col gap-8">
           <div ref={slidersSectionRef} className="glass-panel glass-panel-glow p-6 flex flex-col gap-6">
             <div className="flex justify-between items-center pb-4 border-b border-zinc-800/60">
               <div className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-                  {/* Activity SVG */}
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
                   {editingId ? "Edit Telemetry Log" : "Daily Biometric Input"}
                 </h2>
@@ -709,7 +879,6 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="text-xs font-mono flex items-center gap-1.5">
-                      {/* Cog icon */}
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                       Edit
                     </span>
@@ -767,7 +936,6 @@ export default function Home() {
                           className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800/80 transition"
                           title="Delete Parameter"
                         >
-                          {/* Trash Icon */}
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
@@ -820,7 +988,6 @@ export default function Home() {
                   })}
                 </div>
 
-                {/* Notes Field */}
                 <div className="flex flex-col gap-2">
                   <label className="text-xs font-semibold text-zinc-400">Daily Symptoms & Notes</label>
                   <textarea
@@ -852,7 +1019,6 @@ export default function Home() {
                     type="submit"
                     className="px-5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 hover:scale-[1.02] transition-all flex items-center gap-2"
                   >
-                    {/* Save Check Icon */}
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                     <span>{editingId ? "Update Telemetry" : "Commit Biometric Log"}</span>
                   </button>
@@ -860,201 +1026,37 @@ export default function Home() {
               </form>
             )}
           </div>
-
-
         </div>
 
-        {/* RIGHT COLUMN: PROGRESSION & ARCHIVES (6 Cols) */}
-        <div className="lg:col-span-6 flex flex-col gap-8">
-
-          {/* PROGRESSION ANALYTICS CHART */}
-          <div className="glass-panel p-6 flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-zinc-800/60">
-              <div>
-                <h2 className="text-xl font-bold text-zinc-100">Telemetry Progression</h2>
-                <p className="text-xs text-zinc-400 mt-0.5">Analytic visual trends of pain signals</p>
-              </div>
-
-              {/* Selectors for view & timescale */}
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={chartView}
-                  onChange={(e) => setChartView(e.target.value as any)}
-                  className="bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 px-2 py-1.5 rounded outline-none focus:border-cyan-500 cursor-pointer"
-                >
-                  <option value="all">All Parameters (6 Lines)</option>
-                  <option value="average">Average Index</option>
-                  {parameters.map((param) => (
-                    <option key={param.id} value={param.id}>
-                      {param.label}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="flex bg-zinc-900 rounded border border-zinc-800 p-0.5 text-xs">
-                  <button
-                    onClick={() => setTimeRange("7d")}
-                    className={`px-3 py-1 rounded transition ${timeRange === "7d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
-                      }`}
-                  >
-                    7 Logs
-                  </button>
-                  <button
-                    onClick={() => setTimeRange("30d")}
-                    className={`px-3 py-1 rounded transition ${timeRange === "30d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
-                      }`}
-                  >
-                    30 Logs
-                  </button>
+        {/* <div className="lg:col-span-4 flex flex-col gap-8">
+          <div className="glass-panel p-6 flex flex-col gap-3 h-full justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider pb-3 border-b border-zinc-800/60">Severity Legend</h3>
+              <div className="flex flex-col gap-4 mt-4 text-xs font-mono">
+                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
+                  <span className="w-3 h-3 rounded-full bg-cyan-400 shrink-0" />
+                  <span>0/10 - Pain Free</span>
+                </div>
+                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
+                  <span className="w-3 h-3 rounded-full bg-yellow-400 shrink-0" />
+                  <span>1-3/10 - Mild</span>
+                </div>
+                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
+                  <span className="w-3 h-3 rounded-full bg-orange-400 shrink-0" />
+                  <span>4-6/10 - Moderate</span>
+                </div>
+                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
+                  <span className="w-3 h-3 rounded-full bg-red-400 shrink-0" />
+                  <span>7-10/10 - Severe</span>
                 </div>
               </div>
             </div>
-
-            {/* SVG Interactive Chart Canvas */}
-            <div className="relative w-full h-[220px] bg-zinc-950/40 rounded-lg border border-zinc-900 overflow-hidden mt-2">
-              {chartLines[0] && chartLines[0].points.length > 0 ? (
-                <svg className="w-full h-full" viewBox="0 0 500 220" preserveAspectRatio="none">
-                  {/* Filled Gradient Area (Only for single line view to avoid mess) */}
-                  {!isMultiLine && chartLines[0] && (
-                    <>
-                      <defs>
-                        <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={chartLines[0].color} stopOpacity="0.4" />
-                          <stop offset="100%" stopColor={chartLines[0].color} stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-                      <path d={getChartAreaPath(chartLines[0].points)} fill="url(#chart-grad)" className="transition-all duration-300" />
-                    </>
-                  )}
-
-                  {/* Horizontal Grid lines */}
-                  {Array.from({ length: 6 }).map((_, i) => {
-                    const yVal = 30 + (i * 160) / 5;
-                    const label = 10 - i * 2;
-                    return (
-                      <g key={i} className="opacity-20">
-                        <line x1="40" y1={yVal} x2="460" y2={yVal} stroke="#ffffff" strokeWidth="0.5" strokeDasharray="3" />
-                        <text x="15" y={yVal + 4} fill="#ffffff" className="text-[10px] font-mono select-none">{label}</text>
-                      </g>
-                    );
-                  })}
-
-                  {/* Connecting Lines */}
-                  {chartLines.map((line) => (
-                    <path
-                      key={line.key}
-                      d={getChartLinePath(line.points)}
-                      fill="none"
-                      stroke={line.color}
-                      strokeWidth={isMultiLine ? "2.5" : "3.5"}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="transition-all duration-300"
-                    />
-                  ))}
-
-                  {/* Interactive Nodes */}
-                  {chartLines.map((line) => (
-                    <g key={`nodes-${line.key}`}>
-                      {line.points.map((pt, i) => (
-                        <circle
-                          key={i}
-                          cx={pt.x}
-                          cy={pt.y}
-                          r={isMultiLine ? "3.5" : "5"}
-                          onMouseEnter={() => setHoveredPoint({
-                            ...pt,
-                            label: line.label,
-                            color: line.color,
-                          })}
-                          onMouseLeave={() => setHoveredPoint(null)}
-                          fill={line.color}
-                          className="stroke-zinc-950 stroke-[2px] cursor-pointer hover:scale-125 transition-transform"
-                        />
-                      ))}
-                    </g>
-                  ))}
-
-                  {/* X Axis dates label */}
-                  {chartLines[0] && chartLines[0].points.map((pt, i) => {
-                    const pointsCount = chartLines[0].points.length;
-                    const shouldShowLabel = i === 0 || i === pointsCount - 1 || (pointsCount > 5 && i === Math.floor(pointsCount / 2));
-                    if (!shouldShowLabel) return null;
-
-                    // format to MM/DD
-                    let label = pt.date;
-                    let dateObj: Date | null = null;
-                    if (pt.date.includes("-")) {
-                      const dateParts = pt.date.split("-");
-                      if (dateParts.length === 3) {
-                        const [year, month, day] = dateParts.map(Number);
-                        dateObj = new Date(year, month - 1, day);
-                      }
-                    } else {
-                      dateObj = new Date(pt.date);
-                    }
-                    if (dateObj && !isNaN(dateObj.getTime())) {
-                      const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-                      const d = String(dateObj.getDate()).padStart(2, "0");
-                      label = `${m}/${d}`;
-                    }
-
-                    return (
-                      <text
-                        key={i}
-                        x={pt.x}
-                        y="210"
-                        textAnchor="middle"
-                        fill="#71717a"
-                        className="text-[9px] font-mono select-none"
-                      >
-                        {label}
-                      </text>
-                    );
-                  })}
-                </svg>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500 font-mono">
-                  NO CHRONOLOGICAL BIOMETRIC DATA TO PLOT
-                </div>
-              )}
-
-              {/* Floating Chart Tooltip */}
-              {hoveredPoint && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: `${Math.min(380, Math.max(10, (hoveredPoint.x / 500) * 100))}%`,
-                    top: `${Math.min(150, Math.max(10, hoveredPoint.y - 45))}px`,
-                    transform: "translateX(-40%)",
-                  }}
-                  className="bg-zinc-900 border border-zinc-700/80 rounded px-2.5 py-1 text-[11px] shadow-xl text-zinc-100 backdrop-blur pointer-events-none z-10 font-mono leading-tight"
-                >
-                  <div className="font-bold flex items-center gap-1.5" style={{ color: hoveredPoint.color || "#22d3ee" }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: hoveredPoint.color || "#22d3ee" }} />
-                    <span>{hoveredPoint.label || "Pain Index"}: {hoveredPoint.value}</span>
-                  </div>
-                  <div className="text-zinc-500 text-[9px] mt-0.5">{hoveredPoint.date}</div>
-                </div>
-              )}
+            <div className="text-[11px] text-zinc-500 font-mono mt-4 leading-relaxed border-t border-zinc-800/40 pt-4">
+              Use daily slider tracking values to log severity indicators. Higher ratings represent elevated muscular or joint tension.
             </div>
-
-            {/* Parameter Color Legend for Multi-Line View */}
-            {isMultiLine && (
-              <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center mt-2 px-2 text-[10px] font-mono text-zinc-400">
-                {parameters.map((param, index) => (
-                  <div key={param.id} className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                    <span>{param.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        </div>
+        </div> */}
       </div>
-
-
 
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl border border-cyan-500/30 bg-zinc-950/90 backdrop-blur-md shadow-2xl shadow-cyan-500/10 text-xs font-mono font-medium text-cyan-400 animate-slide-up">
