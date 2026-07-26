@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Highcharts from "highcharts";
+import HighchartsReact from "highcharts-react-official";
 
 interface BiometricParameter {
   id: string;
@@ -129,16 +131,6 @@ export default function Home() {
   const [parameters, setParameters] = useState<BiometricParameter[]>([]);
   const [isManagingParams, setIsManagingParams] = useState(false);
   const [newParamLabel, setNewParamLabel] = useState("");
-
-  // Tooltip position state for custom SVG chart hover
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    x: number;
-    y: number;
-    value: number;
-    date: string;
-    label?: string;
-    color?: string;
-  } | null>(null);
 
   // References for focus scrolling
   const slidersSectionRef = useRef<HTMLDivElement>(null);
@@ -375,22 +367,26 @@ export default function Home() {
     return { bg: "bg-red-950/40", text: "text-red-400", border: "border-red-500/20" };
   };
 
-  // Process data for progression visualization
-  const getChartDataForPart = (partKey: "average" | string) => {
-    // Filter logs based on date time-range limits
-    const numLogsToShow = timeRange === "7d" ? 7 : 30;
-    const sortedLogs = [...logs].slice(-numLogsToShow);
+  // Filter logs based on date time-range limits
+  const numLogsToShow = timeRange === "7d" ? 7 : 30;
+  const sortedLogs = [...logs].slice(-numLogsToShow);
 
-    if (sortedLogs.length === 0) return [];
+  const isMultiLine = chartView === "all";
 
-    const width = 500;
-    const height = 220;
-    const paddingX = 40;
-    const paddingY = 30;
+  // Build series and categories for Highcharts
+  const chartCategories = sortedLogs.map(log => formatDateString(log.date));
 
-    return sortedLogs.map((log, index) => {
-      let value = 0;
-      if (partKey === "average") {
+  let chartSeries: any[] = [];
+  if (chartView === "all") {
+    chartSeries = parameters.map((param, index) => ({
+      name: param.label,
+      data: sortedLogs.map(log => (log.painLevels && log.painLevels[param.id]) ?? 0),
+      color: COLOR_PALETTE[index % COLOR_PALETTE.length],
+    }));
+  } else if (chartView === "average") {
+    chartSeries = [{
+      name: "Average Index",
+      data: sortedLogs.map(log => {
         let sum = 0;
         let count = 0;
         parameters.forEach(p => {
@@ -399,47 +395,121 @@ export default function Home() {
             count++;
           }
         });
-        value = count > 0 ? Number((sum / count).toFixed(1)) : 0;
-      } else {
-        value = (log.painLevels && log.painLevels[partKey]) ?? 0;
-      }
+        return count > 0 ? Number((sum / count).toFixed(1)) : 0;
+      }),
+      color: "#22d3ee",
+    }];
+  } else {
+    const param = parameters.find(p => p.id === chartView);
+    const label = param?.label || String(chartView);
+    const paramIndex = parameters.findIndex(p => p.id === chartView);
+    const color = COLOR_PALETTE[paramIndex >= 0 ? paramIndex % COLOR_PALETTE.length : 0];
 
-      // X coordinate calculation
-      const x = paddingX + (index * (width - 2 * paddingX)) / Math.max(1, sortedLogs.length - 1);
-      // Y coordinate calculation (invert since 0 is at top in SVG coords)
-      const y = height - paddingY - (value * (height - 2 * paddingY)) / 10;
+    chartSeries = [{
+      name: label,
+      data: sortedLogs.map(log => (log.painLevels && log.painLevels[String(chartView)]) ?? 0),
+      color: color,
+    }];
+  }
 
-      return { x, y, value, date: log.date };
-    });
+  const highchartsOptions: Highcharts.Options = {
+    chart: {
+      type: "line",
+      backgroundColor: "transparent",
+      style: {
+        fontFamily: "var(--font-mono, monospace), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+      },
+      height: 280,
+    },
+    title: {
+      text: undefined,
+    },
+    credits: {
+      enabled: false,
+    },
+    xAxis: {
+      categories: chartCategories,
+      lineColor: "#27272a",
+      tickColor: "#27272a",
+      crosshair: {
+        color: "rgba(63, 63, 70, 0.4)",
+        width: 1,
+        dashStyle: "Dash" as any,
+      },
+      labels: {
+        style: {
+          color: "#a1a1aa",
+          fontSize: "10px",
+        },
+      },
+    },
+    yAxis: {
+      title: {
+        text: undefined,
+      },
+      min: 0,
+      max: 10,
+      tickInterval: 2,
+      gridLineColor: "rgba(63, 63, 70, 0.3)",
+      gridLineDashStyle: "Dash" as any,
+      labels: {
+        style: {
+          color: "#a1a1aa",
+          fontSize: "10px",
+        },
+      },
+    },
+    tooltip: {
+      backgroundColor: "#09090b",
+      borderColor: "#27272a",
+      borderRadius: 8,
+      borderWidth: 1,
+      style: {
+        color: "#e4e4e7",
+        fontSize: "11px",
+      },
+      shared: true,
+      shadow: false,
+      useHTML: true,
+      headerFormat: '<span style="font-size: 10px; color: #71717a; margin-bottom: 4px; display: block;">{point.key}</span>',
+      pointFormat: '<div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">' +
+                   '<span style="width: 8px; height: 8px; border-radius: 50%; background-color: {series.color}; display: inline-block;"></span>' +
+                   '<span style="color: #a1a1aa">{series.name}:</span> ' +
+                   '<span style="font-weight: bold; color: #fff">{point.y}</span>' +
+                   '</div>',
+    },
+    plotOptions: {
+      line: {
+        marker: {
+          radius: 4,
+          symbol: "circle",
+          lineWidth: 2,
+          lineColor: "#09090b",
+        },
+        lineWidth: 3,
+      },
+      series: {
+        animation: {
+          duration: 400,
+        },
+      },
+    },
+    legend: {
+      enabled: chartView === "all",
+      itemStyle: {
+        color: "#a1a1aa",
+        fontSize: "10px",
+        fontWeight: "normal",
+      },
+      itemHoverStyle: {
+        color: "#f4f4f5",
+      },
+      itemHiddenStyle: {
+        color: "#3f3f46",
+      },
+    },
+    series: chartSeries,
   };
-
-  const isMultiLine = chartView === "all";
-
-  const getRenderData = () => {
-    if (isMultiLine) {
-      return parameters.map((param, index) => ({
-        key: param.id,
-        points: getChartDataForPart(param.id),
-        label: param.label,
-        color: COLOR_PALETTE[index % COLOR_PALETTE.length],
-      }));
-    } else {
-      const key = chartView;
-      const points = getChartDataForPart(key);
-      const isAverage = key === "average";
-      const paramIndex = parameters.findIndex(p => p.id === key);
-      const label = isAverage ? "Average Index" : (parameters[paramIndex]?.label || key);
-      const color = isAverage ? "#22d3ee" : COLOR_PALETTE[paramIndex >= 0 ? paramIndex % COLOR_PALETTE.length : 0];
-      return [{
-        key,
-        points,
-        label,
-        color,
-      }];
-    }
-  };
-
-  const chartLines = getRenderData();
 
   // Calculate current statistics
   const getStatistics = () => {
@@ -504,19 +574,7 @@ export default function Home() {
 
   const stats = getStatistics();
 
-  // Draw chart paths
-  const getChartLinePath = (points: { x: number; y: number }[]) => {
-    if (points.length === 0) return "";
-    return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  };
 
-  const getChartAreaPath = (points: { x: number; y: number }[]) => {
-    if (points.length === 0) return "";
-    const linePath = getChartLinePath(points);
-    const height = 220;
-    const paddingY = 30;
-    return `${linePath} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`;
-  };
 
   if (!mounted) {
     return (
@@ -723,137 +781,15 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="relative w-full h-[220px] bg-zinc-950/40 rounded-lg border border-zinc-900 overflow-hidden mt-2">
-          {chartLines[0] && chartLines[0].points.length > 0 ? (
-            <svg className="w-full h-full" viewBox="0 0 500 220" preserveAspectRatio="none">
-              {!isMultiLine && chartLines[0] && (
-                <>
-                  <defs>
-                    <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={chartLines[0].color} stopOpacity="0.4" />
-                      <stop offset="100%" stopColor={chartLines[0].color} stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-                  <path d={getChartAreaPath(chartLines[0].points)} fill="url(#chart-grad)" className="transition-all duration-300" />
-                </>
-              )}
-
-              {Array.from({ length: 6 }).map((_, i) => {
-                const yVal = 30 + (i * 160) / 5;
-                const label = 10 - i * 2;
-                return (
-                  <g key={i}>
-                    <line x1="40" y1={yVal} x2="460" y2={yVal} stroke="#ffffff" strokeWidth="0.5" strokeDasharray="3" className="opacity-20" />
-                    <text x="15" y={yVal + 4} fill="#ffffff" className="text-[10px] font-mono select-none opacity-80">{label}</text>
-                  </g>
-                );
-              })}
-
-              {chartLines.map((line) => (
-                <path
-                  key={line.key}
-                  d={getChartLinePath(line.points)}
-                  fill="none"
-                  stroke={line.color}
-                  strokeWidth={isMultiLine ? "2.5" : "3.5"}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="transition-all duration-300"
-                />
-              ))}
-
-              {chartLines.map((line) => (
-                <g key={`nodes-${line.key}`}>
-                  {line.points.map((pt, i) => (
-                    <circle
-                      key={i}
-                      cx={pt.x}
-                      cy={pt.y}
-                      r={isMultiLine ? "3.5" : "5"}
-                      onMouseEnter={() => setHoveredPoint({
-                        ...pt,
-                        label: line.label,
-                        color: line.color,
-                      })}
-                      onMouseLeave={() => setHoveredPoint(null)}
-                      fill={line.color}
-                      className="stroke-zinc-950 stroke-[2px] cursor-pointer hover:scale-125 transition-transform"
-                    />
-                  ))}
-                </g>
-              ))}
-
-              {chartLines[0] && chartLines[0].points.map((pt, i) => {
-                const pointsCount = chartLines[0].points.length;
-                const shouldShowLabel = i === 0 || i === pointsCount - 1 || (pointsCount > 5 && i === Math.floor(pointsCount / 2));
-                if (!shouldShowLabel) return null;
-
-                let label = pt.date;
-                let dateObj: Date | null = null;
-                if (pt.date.includes("-")) {
-                  const dateParts = pt.date.split("-");
-                  if (dateParts.length === 3) {
-                    const [year, month, day] = dateParts.map(Number);
-                    dateObj = new Date(year, month - 1, day);
-                  }
-                } else {
-                  dateObj = new Date(pt.date);
-                }
-                if (dateObj && !isNaN(dateObj.getTime())) {
-                  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-                  const d = String(dateObj.getDate()).padStart(2, "0");
-                  label = `${m}/${d}`;
-                }
-
-                return (
-                  <text
-                    key={i}
-                    x={pt.x}
-                    y="210"
-                    textAnchor="middle"
-                    fill="#ffffff"
-                    className="text-[9px] font-mono select-none opacity-80"
-                  >
-                    {label}
-                  </text>
-                );
-              })}
-            </svg>
+        <div className="w-full bg-zinc-950/40 rounded-lg border border-zinc-900 p-2 mt-2">
+          {sortedLogs.length > 0 ? (
+            <HighchartsReact highcharts={Highcharts} options={highchartsOptions} />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500 font-mono">
+            <div className="relative w-full h-[220px] flex items-center justify-center text-xs text-zinc-500 font-mono">
               NO CHRONOLOGICAL BIOMETRIC DATA TO PLOT
             </div>
           )}
-
-          {hoveredPoint && (
-            <div
-              style={{
-                position: "absolute",
-                left: `${Math.min(380, Math.max(10, (hoveredPoint.x / 500) * 100))}%`,
-                top: `${Math.min(150, Math.max(10, hoveredPoint.y - 45))}px`,
-                transform: "translateX(-40%)",
-              }}
-              className="bg-zinc-900 border border-zinc-700/80 rounded px-2.5 py-1 text-[11px] shadow-xl text-zinc-100 backdrop-blur pointer-events-none z-10 font-mono leading-tight"
-            >
-              <div className="font-bold flex items-center gap-1.5" style={{ color: hoveredPoint.color || "#22d3ee" }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: hoveredPoint.color || "#22d3ee" }} />
-                <span>{hoveredPoint.label || "Pain Index"}: {hoveredPoint.value}</span>
-              </div>
-              <div className="text-zinc-500 text-[9px] mt-0.5">{hoveredPoint.date}</div>
-            </div>
-          )}
         </div>
-
-        {isMultiLine && (
-          <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center mt-2 px-2 text-[10px] font-mono text-zinc-400">
-            {parameters.map((param, index) => (
-              <div key={param.id} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                <span>{param.label}</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* DAILY LOGGER & LEGEND SECTION */}
