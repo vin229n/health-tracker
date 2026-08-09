@@ -79,7 +79,7 @@ export const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1YNPRKs4A
 
 // Google Apps Script Web App URL. Define this in .env.local as GOOGLE_SCRIPT_URL,
 // or paste your URL directly into the string below.
-const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbz0ejPlu8wxg1w1aCSYbbe8yBSzyUXRM0mVI39cFWwf5rlVFc8XmrGVjzxKuV288g-L/exec";
+const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbxs-dH9CurhjUbXUYjGOLfpdhVdHjN05VKUMruIoN7nh7ZSJV7AMU9XGHge1PZKCUwr/exec";
 
 function deduplicateParameters(params: any[]): BiometricParameter[] {
   if (!Array.isArray(params)) return [];

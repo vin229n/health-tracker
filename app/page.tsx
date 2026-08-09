@@ -271,6 +271,41 @@ const deduplicateParameters = (params: BiometricParameter[]): BiometricParameter
   return unique;
 };
 
+const getLogFormattedDate = (dateVal: any): string => {
+  if (!dateVal) return "";
+  const dateStr = String(dateVal);
+  if (dateStr.length === 10 && dateStr.includes("-")) return dateStr;
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return getLocalDateString(d);
+  }
+  return dateStr;
+};
+
+const getPainVal = (entry: LogEntry | undefined, param: BiometricParameter): number => {
+  if (!entry || !entry.painLevels) return 0;
+  const pl = entry.painLevels;
+
+  if (typeof pl[param.id] === "number") return pl[param.id];
+  if (typeof pl[param.label] === "number") return pl[param.label];
+
+  const normLabel = param.label.trim().toLowerCase();
+  for (const k of Object.keys(pl)) {
+    if (k.trim().toLowerCase() === normLabel) {
+      return Number(pl[k]) || 0;
+    }
+  }
+
+  const normId = param.id.trim().toLowerCase();
+  for (const k of Object.keys(pl)) {
+    if (k.trim().toLowerCase() === normId) {
+      return Number(pl[k]) || 0;
+    }
+  }
+
+  return 0;
+};
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -447,16 +482,26 @@ export default function Home() {
         setParameters(uniqueParams);
         const rawLogs = data.logs || [];
         const uniqueLogs: LogEntry[] = [];
-        const seenLogDates = new Set<string>();
+        const seenLogKeys = new Set<string>();
+
         rawLogs.forEach((l: LogEntry) => {
-          if (l && l.date) {
-            const dateKey = l.date.includes("GMT") ? getLocalDateString(new Date(l.date)) : l.date;
-            if (!seenLogDates.has(dateKey)) {
-              seenLogDates.add(dateKey);
-              uniqueLogs.push(l);
+          if (l) {
+            const dateStr = l.date ? String(l.date) : "";
+            let formattedDate = dateStr;
+            if (dateStr.includes("GMT") || dateStr.includes("T") || (dateStr.includes(" ") && dateStr.length > 10)) {
+              const d = new Date(dateStr);
+              if (!isNaN(d.getTime())) {
+                formattedDate = getLocalDateString(d);
+              }
+            }
+            const key = formattedDate || l.id || `log-${Math.random()}`;
+            if (!seenLogKeys.has(key)) {
+              seenLogKeys.add(key);
+              uniqueLogs.push({ ...l, date: formattedDate || l.date });
             }
           }
         });
+
         setLogs(uniqueLogs);
         setPeriodLogs(data.periodLogs || []);
         if (data.weatherLogs) {
@@ -474,9 +519,6 @@ export default function Home() {
       })
       .catch((err) => {
         console.error("Error loading server data:", err);
-        setParameters([]);
-        setLogs([]);
-        setPeriodLogs([]);
         setMounted(true);
       });
   }, []);
@@ -521,14 +563,14 @@ export default function Home() {
       }
 
       // Also sync biometric logs for this date into pain levels & notes
-      const bioLog = logs.find((l) => {
-        const logDate = l.date.includes("GMT") ? getLocalDateString(new Date(l.date)) : l.date;
-        return logDate === selectedCalendarDate;
-      });
+      const bioLog = logs.find((l) => getLogFormattedDate(l.date) === selectedCalendarDate);
       if (bioLog) {
-        setPainLevels(bioLog.painLevels || {});
+        const currentLevels: PainLevels = {};
+        parameters.forEach((p) => {
+          currentLevels[p.id] = getPainVal(bioLog, p);
+        });
+        setPainLevels(currentLevels);
         setNotes(bioLog.notes || "");
-        setEditingId(bioLog.id || null);
       } else {
         setPainLevels((prev) => {
           const reset: PainLevels = {};
@@ -536,7 +578,6 @@ export default function Home() {
           return reset;
         });
         setNotes("");
-        setEditingId(null);
       }
     }
   }, [selectedCalendarDate, periodLogs, logs, mounted, parameters]);
@@ -807,16 +848,15 @@ export default function Home() {
     let todaySum = 0,
       todayCount = 0;
     parameters.forEach((p) => {
-      if (latest.painLevels && latest.painLevels[p.id] !== undefined) {
-        todaySum += latest.painLevels[p.id];
-        todayCount++;
-      }
+      const val = getPainVal(latest, p);
+      todaySum += val;
+      todayCount++;
     });
     const avgToday = todayCount > 0 ? Number((todaySum / todayCount).toFixed(1)) : 0;
     let maxVal = -1,
       highestParamLabel = "N/A";
     parameters.forEach((p) => {
-      const val = (latest.painLevels && latest.painLevels[p.id]) ?? 0;
+      const val = getPainVal(latest, p);
       if (val > maxVal) {
         maxVal = val;
         highestParamLabel = p.label;
@@ -829,10 +869,8 @@ export default function Home() {
       let pastSum = 0,
         pastCount = 0;
       parameters.forEach((p) => {
-        if (pastLog.painLevels && pastLog.painLevels[p.id] !== undefined) {
-          pastSum += pastLog.painLevels[p.id];
-          pastCount++;
-        }
+        pastSum += getPainVal(pastLog, p);
+        pastCount++;
       });
       const pastAvg = pastCount > 0 ? pastSum / pastCount : 0;
       if (pastAvg > 0) {
@@ -973,13 +1011,8 @@ export default function Home() {
           name: p.label,
           type: "column" as const,
           data: continuousCalendarDates.map((dateStr) => {
-            const entry = logs.find((l) => {
-              const logDate = l.date.includes("GMT") ? getLocalDateString(new Date(l.date)) : l.date;
-              return logDate === dateStr;
-            });
-            return entry && entry.painLevels && entry.painLevels[p.id] !== undefined
-              ? entry.painLevels[p.id]
-              : 0;
+            const entry = logs.find((l) => getLogFormattedDate(l.date) === dateStr);
+            return getPainVal(entry, p);
           }),
           color: COLOR_PALETTE[idx % COLOR_PALETTE.length],
           tooltip: { valueSuffix: " / 10 Pain" },
@@ -1245,7 +1278,7 @@ export default function Home() {
                           {param.label}
                         </td>
                         {[...logs].reverse().map((entry, idx) => {
-                          const val = (entry.painLevels && entry.painLevels[param.id]) ?? 0;
+                          const val = getPainVal(entry, param);
                           return (
                             <td key={`td-log-${param.id}-${entry.id || entry.date}-${idx}`} className="p-3 text-center border-r border-zinc-800/40 whitespace-nowrap">
                               <span className={`px-2.5 py-1 rounded font-bold ${getSeverityStyles(val).bg} ${getSeverityStyles(val).text}`}>

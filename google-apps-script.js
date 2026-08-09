@@ -42,22 +42,31 @@ function doGet() {
       logsSheet.appendRow(["ID", "Date", "Notes"]);
     }
     const logsData = logsSheet.getDataRange().getValues();
-    const logs = [];
+    const logsMap = {};
     if (logsData.length > 1) {
       const headers = logsData[0].map(function(h) { return h.toString(); });
       for (let i = 1; i < logsData.length; i++) {
         const row = logsData[i];
-        if (!row[0]) continue;
+        if (!row[0] && !row[1]) continue;
         
-        const id = row[0].toString();
+        const id = row[0] ? row[0].toString() : ("log-" + i);
         let dateVal = row[1];
         let dateStr = "";
         if (dateVal instanceof Date) {
           dateStr = Utilities.formatDate(dateVal, spreadsheet.getSpreadsheetTimeZone(), "yyyy-MM-dd");
         } else {
           dateStr = dateVal ? dateVal.toString() : "";
+          if (dateStr.indexOf("GMT") >= 0 || dateStr.indexOf("T") >= 0 || (dateStr.indexOf(" ") >= 0 && dateStr.length > 10)) {
+            try {
+              const dParsed = new Date(dateStr);
+              if (!isNaN(dParsed.getTime())) {
+                dateStr = Utilities.formatDate(dParsed, spreadsheet.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+              }
+            } catch(e) {}
+          }
         }
-        
+        if (!dateStr) continue;
+
         const notes = row[2] ? row[2].toString() : "";
         const painLevels = {};
         
@@ -68,14 +77,26 @@ function doGet() {
           }
         }
         
-        logs.push({
-          id: id,
-          date: dateStr,
-          painLevels: painLevels,
-          notes: notes
-        });
+        if (!logsMap[dateStr]) {
+          logsMap[dateStr] = {
+            id: id,
+            date: dateStr,
+            painLevels: painLevels,
+            notes: notes
+          };
+        } else {
+          if (notes) logsMap[dateStr].notes = notes;
+          for (let pk in painLevels) {
+            if (painLevels[pk] > 0) {
+              logsMap[dateStr].painLevels[pk] = painLevels[pk];
+            }
+          }
+        }
       }
     }
+    
+    const sortedLogDates = Object.keys(logsMap).sort();
+    const logs = sortedLogDates.map(function(dKey) { return logsMap[dKey]; });
     
     // 3. Read Period Tracker & Menstrual Day logs
     let menstrualSheet = spreadsheet.getSheetByName("PeriodTracker") || spreadsheet.getSheetByName("MenstrualDay");
@@ -184,10 +205,10 @@ function doGet() {
       }
     }
 
-    // 6. Read WeatherLogs sheet
-    let weatherSheet = spreadsheet.getSheetByName("WeatherLogs");
+    // 6. Read weatherLogs sheet
+    let weatherSheet = spreadsheet.getSheetByName("weatherLogs") || spreadsheet.getSheetByName("WeatherLogs") || spreadsheet.getSheetByName("Weather") || spreadsheet.getSheetByName("weather");
     if (!weatherSheet) {
-      weatherSheet = spreadsheet.insertSheet("WeatherLogs");
+      weatherSheet = spreadsheet.insertSheet("weatherLogs");
       weatherSheet.appendRow(["Date", "Temperature (°C)", "Condition", "Humidity (%)", "Pressure (hPa)", "Advice"]);
     }
     const weatherData = weatherSheet.getDataRange().getValues();
@@ -287,8 +308,55 @@ function doPost(e) {
       const headers = ["ID", "Date", "Notes"].concat(paramIds);
       logsSheet.appendRow(headers);
       
-      const logs = postData.logs || [];
-      logs.forEach(function(log) {
+      const rawLogs = postData.logs || [];
+      const logMap = {};
+
+      rawLogs.forEach(function(log) {
+        if (!log || !log.date) return;
+        let dateVal = log.date;
+        let dateStr = "";
+        if (dateVal instanceof Date) {
+          dateStr = Utilities.formatDate(dateVal, spreadsheet.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+        } else {
+          dateStr = dateVal.toString();
+          if (dateStr.indexOf("GMT") >= 0 || dateStr.indexOf("T") >= 0 || (dateStr.indexOf(" ") >= 0 && dateStr.length > 10)) {
+            try {
+              const parsedDate = new Date(dateStr);
+              if (!isNaN(parsedDate.getTime())) {
+                dateStr = Utilities.formatDate(parsedDate, spreadsheet.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+              }
+            } catch(e) {}
+          }
+        }
+
+        if (!dateStr) return;
+
+        if (!logMap[dateStr]) {
+          logMap[dateStr] = {
+            id: log.id || ("log-" + dateStr),
+            date: dateStr,
+            notes: log.notes || "",
+            painLevels: log.painLevels || {}
+          };
+        } else {
+          const existing = logMap[dateStr];
+          if (log.notes && log.notes.trim() !== "") {
+            existing.notes = log.notes;
+          }
+          if (log.painLevels) {
+            for (let pk in log.painLevels) {
+              if (log.painLevels[pk] !== undefined && log.painLevels[pk] !== null && Number(log.painLevels[pk]) > 0) {
+                existing.painLevels[pk] = Number(log.painLevels[pk]);
+              }
+            }
+          }
+        }
+      });
+
+      const sortedDates = Object.keys(logMap).sort();
+
+      sortedDates.forEach(function(dateKey) {
+        const log = logMap[dateKey];
         const row = [
           log.id,
           log.date,
@@ -379,29 +447,47 @@ function doPost(e) {
       settingsSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#f0fdf4");
     }
 
-    // 5. Update WeatherLogs sheet ONLY IF postData.updateWeatherLogs === true or postData.weatherLogs provided
+    // 5. Update weatherLogs sheet ONLY IF postData.updateWeatherLogs === true or postData.weatherLogs provided
     if (postData.updateWeatherLogs === true || Array.isArray(postData.weatherLogs)) {
-      let weatherSheet = spreadsheet.getSheetByName("WeatherLogs");
+      let weatherSheet = spreadsheet.getSheetByName("weatherLogs") || spreadsheet.getSheetByName("WeatherLogs") || spreadsheet.getSheetByName("Weather") || spreadsheet.getSheetByName("weather");
       if (!weatherSheet) {
-        weatherSheet = spreadsheet.insertSheet("WeatherLogs");
+        weatherSheet = spreadsheet.insertSheet("weatherLogs");
+        weatherSheet.appendRow(["Date", "Temperature (°C)", "Condition", "Humidity (%)", "Pressure (hPa)", "Advice"]);
+        weatherSheet.getRange("A1:F1").setFontWeight("bold").setBackground("#fef3c7");
       }
-      weatherSheet.clear();
-      weatherSheet.appendRow(["Date", "Temperature (°C)", "Condition", "Humidity (%)", "Pressure (hPa)", "Advice"]);
+
+      const existingData = weatherSheet.getDataRange().getValues();
+      const existingDates = {};
+      for (let i = 1; i < existingData.length; i++) {
+        if (existingData[i][0]) {
+          let dStr = "";
+          if (existingData[i][0] instanceof Date) {
+            dStr = Utilities.formatDate(existingData[i][0], spreadsheet.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+          } else {
+            dStr = existingData[i][0].toString();
+          }
+          existingDates[dStr] = i + 1;
+        }
+      }
 
       const weatherLogs = postData.weatherLogs || [];
       weatherLogs.forEach(function(w) {
         if (w.date) {
-          weatherSheet.appendRow([
+          const rowVals = [
             w.date,
             w.temp !== undefined ? w.temp : "",
             w.condition || "",
             w.humidity !== undefined ? w.humidity : "",
             w.pressure !== undefined ? w.pressure : "",
             w.advice || ""
-          ]);
+          ];
+          if (existingDates[w.date]) {
+            weatherSheet.getRange(existingDates[w.date], 1, 1, 6).setValues([rowVals]);
+          } else {
+            weatherSheet.appendRow(rowVals);
+          }
         }
       });
-      weatherSheet.getRange("A1:F1").setFontWeight("bold").setBackground("#fef3c7");
     }
     
     return ContentService.createTextOutput(JSON.stringify({ success: true }))
