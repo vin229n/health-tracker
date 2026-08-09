@@ -746,13 +746,13 @@
   "periodLogs": [
     {
       "date": "2026-07-31",
-      "isPeriodStart": false,
-      "flow": "none",
+      "isPeriodStart": true,
+      "flow": "started",
       "symptoms": [],
       "notes": "",
       "moodSwings": [],
       "moodLevels": [],
-      "energyLevel": 7
+      "energyLevel": 4
     },
     {
       "date": "2026-07-04",
@@ -763,6 +763,16 @@
       "moodSwings": [],
       "moodLevels": [],
       "energyLevel": 7
+    },
+    {
+      "date": "2026-08-09",
+      "isPeriodStart": false,
+      "flow": "none",
+      "symptoms": [],
+      "notes": "",
+      "moodSwings": [],
+      "moodLevels": [],
+      "energyLevel": 6
     }
   ],
   "periodSettings": {

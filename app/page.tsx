@@ -1045,22 +1045,22 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col p-4 md:p-8 max-w-7xl mx-auto w-full gap-8 text-zinc-100">
       {/* HEADER WITH TWO TABS SWITCH */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-zinc-800/80">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-zinc-800/80">
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse shadow-lg shadow-cyan-500/50" />
             <span className="text-xs font-mono tracking-widest text-zinc-400 uppercase">SYSTEM ONLINE</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
             Pooja's Health Tracker
           </h1>
         </div>
 
         {/* TAB CONTROLS */}
-        <div className="flex bg-zinc-900/90 border border-zinc-800 p-1.5 rounded-2xl gap-1.5 shadow-xl">
+        <div className="flex w-full sm:w-auto bg-zinc-900/90 border border-zinc-800 p-1.5 rounded-2xl gap-1.5 shadow-xl">
           <button
             onClick={() => setActiveTab("dashboard")}
-            className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2.5 ${activeTab === "dashboard"
+            className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2.5 ${activeTab === "dashboard"
               ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-500/10"
               : "text-zinc-400 hover:text-zinc-200 border border-transparent"
               }`}
@@ -1070,7 +1070,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveTab("input")}
-            className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2.5 ${activeTab === "input"
+            className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2.5 ${activeTab === "input"
               ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-500/10"
               : "text-zinc-400 hover:text-zinc-200 border border-transparent"
               }`}
@@ -1216,14 +1216,14 @@ export default function Home() {
               </div>
 
               {/* Metric Selectors */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-1 px-1">
                 {parameters.map((param, index) => {
                   const isChecked = selectedCorrelationParams.includes(param.id);
                   return (
                     <button
                       key={`metric-btn-${param.id}-${index}`}
                       onClick={() => handleCorrelationParamToggle(param.id)}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${isChecked
+                      className={`whitespace-nowrap flex-shrink-0 px-3.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${isChecked
                         ? "bg-purple-950/40 border-purple-500/50 text-purple-300 shadow"
                         : "bg-zinc-950/40 border-zinc-800 text-zinc-500 hover:text-zinc-300"
                         }`}
@@ -1259,11 +1259,11 @@ export default function Home() {
                 Zero Logs Committed. Add entries in the Daily Input tab.
               </div>
             ) : (
-              <div className="overflow-x-auto w-full max-h-[500px] border border-zinc-800/80 rounded-xl bg-zinc-950/60">
+              <div className="overflow-x-auto w-full max-h-[500px] border border-zinc-800/80 rounded-xl bg-zinc-950/80 custom-scrollbar">
                 <table className="w-full text-left text-xs md:text-sm font-mono border-collapse">
                   <thead>
                     <tr className="bg-zinc-900/90 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-20">
-                      <th className="p-3 sticky left-0 bg-zinc-900 z-30 border-r border-zinc-800 min-w-[140px]">Parameter</th>
+                      <th className="p-3.5 sticky left-0 bg-zinc-900/95 backdrop-blur z-30 border-r border-zinc-800 min-w-[150px] sm:min-w-[180px] shadow-[4px_0_12px_rgba(0,0,0,0.5)]">Parameter</th>
                       {[...logs].reverse().map((entry, idx) => (
                         <th key={`th-log-${entry.id || entry.date}-${idx}`} className="p-3 text-center whitespace-nowrap min-w-[100px] border-r border-zinc-800/50">
                           {formatDateString(entry.date)}
@@ -1273,15 +1273,15 @@ export default function Home() {
                   </thead>
                   <tbody className="divide-y divide-zinc-800/60">
                     {parameters.map((param, index) => (
-                      <tr key={`archive-row-${param.id}-${index}`} className="hover:bg-zinc-900/30 transition-colors">
-                        <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-300 z-10 border-r border-zinc-800 min-w-[140px]">
+                      <tr key={`archive-row-${param.id}-${index}`} className="hover:bg-zinc-900/40 transition-colors even:bg-zinc-900/20 odd:bg-zinc-950/40">
+                        <td className="p-3.5 sticky left-0 bg-zinc-950/95 backdrop-blur font-bold text-zinc-200 z-10 border-r border-zinc-800/90 min-w-[150px] sm:min-w-[180px] shadow-[4px_0_12px_rgba(0,0,0,0.5)]">
                           {param.label}
                         </td>
                         {[...logs].reverse().map((entry, idx) => {
                           const val = getPainVal(entry, param);
                           return (
                             <td key={`td-log-${param.id}-${entry.id || entry.date}-${idx}`} className="p-3 text-center border-r border-zinc-800/40 whitespace-nowrap">
-                              <span className={`px-2.5 py-1 rounded font-bold ${getSeverityStyles(val).bg} ${getSeverityStyles(val).text}`}>
+                              <span className={`px-2.5 py-1 rounded-md font-bold ${getSeverityStyles(val).bg} ${getSeverityStyles(val).text}`}>
                                 {val}
                               </span>
                             </td>
@@ -1419,16 +1419,16 @@ export default function Home() {
                   />
                 </div>
 
-                {/* Parameter Sliders */}
-                <div className="flex flex-col gap-4 max-h-[380px] overflow-y-auto pr-2">
+                {/* Parameter Sliders Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
                   {parameters.map((param, index) => {
                     const currentVal = painLevels[param.id] ?? 0;
                     const styles = getSeverityStyles(currentVal);
                     return (
-                      <div key={`slider-item-${param.id}-${index}`} className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800/80 flex flex-col gap-2">
+                      <div key={`slider-item-${param.id}-${index}`} className="p-3 bg-zinc-950/80 rounded-xl border border-zinc-800/80 flex flex-col gap-2 hover:border-zinc-700 transition">
                         <div className="flex justify-between items-center text-xs">
-                          <span className="font-bold text-zinc-200">{param.label}</span>
-                          <span className={`px-2 py-0.5 rounded font-mono font-bold ${styles.bg} ${styles.text}`}>
+                          <span className="font-bold text-zinc-200 truncate pr-2">{param.label}</span>
+                          <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] ${styles.bg} ${styles.text}`}>
                             {currentVal} / 10
                           </span>
                         </div>
@@ -1438,7 +1438,7 @@ export default function Home() {
                           max="10"
                           value={currentVal}
                           onChange={(e) => handleSliderChange(param.id, parseInt(e.target.value))}
-                          className="w-full accent-cyan-400 bg-zinc-800 h-2 rounded-lg cursor-pointer"
+                          className="w-full accent-cyan-400 bg-zinc-800 h-2.5 rounded-lg cursor-pointer"
                         />
                       </div>
                     );
