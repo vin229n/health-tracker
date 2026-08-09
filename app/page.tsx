@@ -16,16 +16,35 @@ interface LogEntry {
   date: string;
   painLevels: PainLevels;
   notes: string;
+  energyLevel?: number;
 }
 
-const DEFAULT_PARAMETERS: BiometricParameter[] = [
-  { id: "rightShoulder", label: "Right Shoulder" },
-  { id: "rightArm", label: "Right Arm Muscle" },
-  { id: "leftShoulder", label: "Left Shoulder" },
-  { id: "leftArm", label: "Left Arm (Anterior Deltoid)" },
-  { id: "upperBack", label: "Upper Back (Scapula)" },
-  { id: "lowerBack", label: "Lower Back" },
-];
+interface PeriodLogEntry {
+  date: string; // YYYY-MM-DD local format
+  flow?: "none" | "spotting" | "light" | "medium" | "heavy" | "started";
+  isPeriodStart?: boolean;
+  symptoms: string[];
+  notes: string;
+  moodSwings?: string[];
+  moodLevels?: string[];
+  energyLevel?: number;
+}
+
+interface PeriodSettings {
+  cycleLength: number;
+  periodLength: number;
+}
+
+interface WeatherData {
+  temp: number;
+  condition: string;
+  icon: string;
+  humidity: number;
+  pressure: number;
+  city: string;
+  advice: string;
+  loading: boolean;
+}
 
 const COLOR_PALETTE = [
   "#06b6d4", // Cyan
@@ -40,50 +59,33 @@ const COLOR_PALETTE = [
   "#14b8a6", // Teal
 ];
 
-// Initial state for daily log inputs
-const INITIAL_PAIN_LEVELS: PainLevels = {
-  rightShoulder: 0,
-  rightArm: 1,
-  leftShoulder: 3,
-  leftArm: 5,
-  upperBack: 2,
-  lowerBack: 0,
-};
+const SYMPTOM_OPTIONS = [
+  "Cramps",
+  "Headache",
+  "Bloating",
+  "Fatigue",
+  "Breast Tenderness",
+  "Backache",
+  "Acne",
+  "Nausea",
+  "Insomnia",
+  "Joint Stiffness",
+];
 
-// Seed mock data if localStorage is empty
-const getMockLogs = (): LogEntry[] => {
-  const today = new Date();
-  return Array.from({ length: 7 }).map((_, idx) => {
-    const date = new Date();
-    date.setDate(today.getDate() - (7 - idx)); // past 7 days excluding today
-    const dateString = date.toISOString().split("T")[0];
+const MOOD_OPTIONS = [
+  "Calm 😌",
+  "Energetic ⚡",
+  "Focused 🎯",
+  "Happy 😊",
+  "Anxious 😰",
+  "Irritable 😤",
+  "Low Energy 🔋",
+  "Sad 😢",
+  "Overwhelmed 🤯",
+  "Mood Swings 🎢",
+];
 
-    // Progression trend representing gradual improvement
-    const progressFactor = idx; // 0 to 6
-    return {
-      id: `mock-${idx}`,
-      date: dateString,
-      painLevels: {
-        rightShoulder: Math.max(0, 2 - Math.floor(progressFactor / 3)),
-        rightArm: Math.max(0, 3 - Math.floor(progressFactor / 2)),
-        leftShoulder: Math.max(0, 5 - Math.floor(progressFactor / 1.5)),
-        leftArm: Math.max(2, 7 - Math.floor(progressFactor / 1.2)),
-        upperBack: Math.max(0, 4 - Math.floor(progressFactor / 2)),
-        lowerBack: Math.max(0, 1 - Math.floor(progressFactor / 4)),
-      },
-      notes: [
-        "Felt considerable soreness during upper body movement.",
-        "Stiffness is noticeable in shoulders and upper back. Rested today.",
-        "Slight improvement. Practiced gentle mobility exercises.",
-        "Left arm (anterior deltoid) feels slightly less inflamed.",
-        "Upper back tension is decreasing. Left shoulder pain reduced.",
-        "Felt good today. Pain levels are decreasing overall.",
-        "Progress is steady. Right shoulder pain is completely resolved.",
-      ][idx],
-    };
-  });
-};
-
+// Helper to format date strings for display (e.g. "Jul 10")
 const formatDateString = (dateStr: string) => {
   if (!dateStr) return "";
   let dateObj: Date;
@@ -103,44 +105,322 @@ const formatDateString = (dateStr: string) => {
     return dateStr;
   }
 
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const dayName = days[dateObj.getDay()];
   const monthName = months[dateObj.getMonth()];
   const dayNum = dateObj.getDate();
   return `${monthName} ${dayNum}`;
 };
 
+// Helper for local YYYY-MM-DD representation
+const getLocalDateString = (d: Date = new Date()) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Helper to determine period start dates based on flow logs
+const getPeriodStartDates = (pLogs: PeriodLogEntry[]): Date[] => {
+  const activeDays = pLogs
+    .filter((log) => log.flow && log.flow !== "none")
+    .map((log) => {
+      const [y, m, d] = log.date.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    })
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (activeDays.length === 0) return [];
+
+  const startDates: Date[] = [];
+  let prevTime: number | null = null;
+
+  activeDays.forEach((currentDate) => {
+    const currentTime = currentDate.getTime();
+    if (prevTime === null) {
+      startDates.push(currentDate);
+    } else {
+      const diffDays = (currentTime - prevTime) / (1000 * 60 * 60 * 24);
+      if (diffDays > 3) {
+        startDates.push(currentDate);
+      }
+    }
+    prevTime = currentTime;
+  });
+
+  return startDates;
+};
+
+// Helper to calculate cycle day and phase for a target date
+const getCycleInfoForDate = (targetDate: Date, startDates: Date[], settings: PeriodSettings) => {
+  if (startDates.length === 0) {
+    return {
+      phase: "unknown" as const,
+      cycleDay: 0,
+      phaseName: "No Cycle Data",
+      description: "Log your period in the Input tab to start tracking cycle phases.",
+      color: "#71717a",
+      bgClass: "bg-zinc-950/40",
+      borderClass: "border-zinc-800/60",
+      textClass: "text-zinc-400 font-mono",
+    };
+  }
+
+  const pastStarts = startDates.filter((s) => s.getTime() <= targetDate.getTime());
+  let S: Date;
+  if (pastStarts.length > 0) {
+    S = pastStarts[pastStarts.length - 1];
+  } else {
+    S = startDates[0];
+  }
+
+  const periodLength = settings.periodLength;
+
+  const diffMs = targetDate.getTime() - S.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  const cycleDay = diffDays >= 0 ? diffDays + 1 : 0;
+
+  if (cycleDay === 0) {
+    return {
+      phase: "unknown" as const,
+      cycleDay: 0,
+      phaseName: "No Cycle Data",
+      description: "Log your period in the Input tab to start tracking cycle phases.",
+      color: "#71717a",
+      bgClass: "bg-zinc-950/40",
+      borderClass: "border-zinc-800/60",
+      textClass: "text-zinc-400 font-mono",
+    };
+  }
+
+  let phase: "menstruation" | "follicular" | "ovulation" | "luteal" = "luteal";
+  let phaseName = "";
+  let description = "";
+  let color = "";
+  let bgClass = "";
+  let borderClass = "";
+  let textClass = "";
+
+  if (cycleDay <= periodLength) {
+    phase = "menstruation";
+    phaseName = "Menstruation Phase";
+    description = "Estrogen & Progesterone are low. Focus on rest, hydration, and light body recovery.";
+    color = "#f43f5e";
+    bgClass = "bg-rose-950/40";
+    borderClass = "border-rose-500/20";
+    textClass = "text-rose-400";
+  } else if (cycleDay <= 13) {
+    phase = "follicular";
+    phaseName = "Follicular Phase";
+    description = "Estrogen is rising. Physical energy, stamina, and mental clarity peak during this phase.";
+    color = "#f97316";
+    bgClass = "bg-orange-950/40";
+    borderClass = "border-orange-500/20";
+    textClass = "text-orange-400";
+  } else if (cycleDay <= 18) {
+    phase = "ovulation";
+    phaseName = "Ovulation Phase";
+    description = "Estrogen peaks. High vitality, sharp focus, and peak physical performance window.";
+    color = "#a855f7";
+    bgClass = "bg-purple-950/40";
+    borderClass = "border-purple-500/20";
+    textClass = "text-purple-400";
+  } else {
+    phase = "luteal";
+    phaseName = "Luteal Phase";
+    description = "Progesterone dominates. Pre-menstrual window where joint stiffness, cramps, or mood shifts may occur.";
+    color = "#3b82f6";
+    bgClass = "bg-blue-950/40";
+    borderClass = "border-blue-500/20";
+    textClass = "text-blue-400";
+  }
+
+  return {
+    phase,
+    cycleDay,
+    phaseName,
+    description,
+    color,
+    bgClass,
+    borderClass,
+    textClass,
+  };
+};
+
+const deduplicateParameters = (params: BiometricParameter[]): BiometricParameter[] => {
+  if (!Array.isArray(params)) return [];
+  const unique: BiometricParameter[] = [];
+  const seenIds = new Set<string>();
+  const seenLabels = new Set<string>();
+
+  params.forEach((p) => {
+    if (!p || !p.id || !p.label) return;
+    const cleanId = String(p.id).trim();
+    const cleanLabel = String(p.label).trim().replace(/\s+/g, " ");
+    const normLabel = cleanLabel.toLowerCase();
+
+    if (["vital", "period", "weather", "energy"].includes(normLabel)) return;
+
+    if (!seenIds.has(cleanId) && !seenLabels.has(normLabel)) {
+      seenIds.add(cleanId);
+      seenLabels.add(normLabel);
+      unique.push({ id: cleanId, label: cleanLabel });
+    }
+  });
+
+  return unique;
+};
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [parameters, setParameters] = useState<BiometricParameter[]>([]);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "input">("dashboard");
 
-  // Input states
-  const [painLevels, setPainLevels] = useState<PainLevels>(INITIAL_PAIN_LEVELS);
+  // Pain Telemetry Input states
+  const [painLevels, setPainLevels] = useState<PainLevels>({});
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState("");
-
-  // Selection states
-  const [activePart, setActivePart] = useState<keyof PainLevels | null>(null);
-  const [chartView, setChartView] = useState<"all" | "average" | keyof PainLevels>("all");
-  const [timeRange, setTimeRange] = useState<"7d" | "30d">("7d");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isInputExpanded, setIsInputExpanded] = useState(true);
-
-  // Dynamic parameters state
-  const [parameters, setParameters] = useState<BiometricParameter[]>([]);
+  const [editingLabel, setEditingLabel] = useState<string>("");
   const [isManagingParams, setIsManagingParams] = useState(false);
   const [newParamLabel, setNewParamLabel] = useState("");
 
-  // References for focus scrolling
-  const slidersSectionRef = useRef<HTMLDivElement>(null);
+  // Menstrual & Mood states
+  const [periodLogs, setPeriodLogs] = useState<PeriodLogEntry[]>([]);
+  const [periodSettings, setPeriodSettings] = useState<PeriodSettings>({
+    cycleLength: 28,
+    periodLength: 5,
+  });
 
-  // Toast notification state
+  // Calendar states
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => getLocalDateString());
+
+  // Input tab state variables
+  const [flow, setFlow] = useState<PeriodLogEntry["flow"]>("none");
+  const [isPeriodStart, setIsPeriodStart] = useState<boolean>(false);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [periodNotes, setPeriodNotes] = useState("");
+  const [moodSwings, setMoodSwings] = useState<string[]>([]);
+  const [moodLevels, setMoodLevels] = useState<string[]>([]);
+  const [inputEnergy, setInputEnergy] = useState<number>(7);
+
+  // Correlation tab checkboxes
+  const [selectedCorrelationParams, setSelectedCorrelationParams] = useState<string[]>([]);
+
+  // References and Notification states
+  const slidersSectionRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+
+  // Live Weather State
+  const [weather, setWeather] = useState<WeatherData>({
+    temp: 24,
+    condition: "Partly Cloudy",
+    icon: "🌤️",
+    humidity: 62,
+    pressure: 1013,
+    city: "Local",
+    advice: "Mild atmospheric pressure - light joint care advised today.",
+    loading: true,
+  });
+  const [weatherLogs, setWeatherLogs] = useState<any[]>([]);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
     setToast({ message, type });
   };
+
+  useEffect(() => {
+    const fetchWeatherForCoords = async (lat: number, lon: number, cityName?: string) => {
+      try {
+        const res = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,surface_pressure`
+        );
+        if (!res.ok) throw new Error("Weather fetch failed");
+        const data = await res.json();
+        const current = data.current;
+        const temp = Math.round(current.temperature_2m);
+        const humidity = current.relative_humidity_2m;
+        const pressure = Math.round(current.surface_pressure);
+        const code = current.weather_code;
+
+        let condition = "Clear Sky";
+        let icon = "☀️";
+        let advice = "Great weather conditions today. Maintain regular activity.";
+
+        if (code === 0) {
+          condition = "Clear Sky";
+          icon = "☀️";
+          advice = "Bright & clear! Ideal day for light outdoor mobility.";
+        } else if (code >= 1 && code <= 3) {
+          condition = "Partly Cloudy";
+          icon = "🌤️";
+          advice = "Comfortable weather. Great for routine body recovery.";
+        } else if (code === 45 || code === 48) {
+          condition = "Foggy";
+          icon = "🌫️";
+          advice = "High moisture & fog. Keep joints warm and dry.";
+        } else if (code >= 51 && code <= 67) {
+          condition = "Rainy";
+          icon = "🌧️";
+          advice = "Rain & humidity change. Warm compression recommended for stiff joints.";
+        } else if (code >= 71 && code <= 77) {
+          condition = "Snowy";
+          icon = "❄️";
+          advice = "Cold weather window. Keep indoor environment comfortably warm.";
+        } else if (code >= 80 && code <= 82) {
+          condition = "Rain Showers";
+          icon = "🌦️";
+          advice = "Damp weather. Stay hydrated & warm.";
+        } else if (code >= 95) {
+          condition = "Thunderstorm";
+          icon = "⛈️";
+          advice = "Barometric pressure drop detected. Rest if joint pain elevates.";
+        }
+
+        setWeather({
+          temp,
+          condition,
+          icon,
+          humidity,
+          pressure,
+          city: cityName || "Local Area",
+          advice,
+          loading: false,
+        });
+
+        // Automatically sync today's weather log to Google Sheets / API
+        const todayStr = getLocalDateString();
+        const weatherEntry = { date: todayStr, temp, condition, humidity, pressure, advice };
+        setWeatherLogs((prev) => {
+          const idx = prev.findIndex((w) => w.date === todayStr);
+          let updated: any[];
+          if (idx >= 0) {
+            updated = [...prev];
+            updated[idx] = weatherEntry;
+          } else {
+            updated = [...prev, weatherEntry];
+          }
+          fetch("/api/data", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ weatherLogs: updated }),
+          }).catch((e) => console.error("Error saving weather log:", e));
+          return updated;
+        });
+      } catch (err) {
+        console.error("Error fetching weather:", err);
+        setWeather((prev) => ({ ...prev, loading: false }));
+      }
+    };
+
+    // Track Bangalore Weather (Latitude: 12.9716, Longitude: 77.5946)
+    const BANGALORE_LAT = 12.9716;
+    const BANGALORE_LON = 77.5946;
+
+    fetchWeatherForCoords(BANGALORE_LAT, BANGALORE_LON, "Bangalore");
+  }, []);
 
   useEffect(() => {
     if (toast) {
@@ -151,9 +431,9 @@ export default function Home() {
     }
   }, [toast]);
 
-  // Trigger Client-only mounting and load data
+  // Load Initial Data
   useEffect(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalDateString();
     setDate(todayStr);
 
     fetch("/api/data")
@@ -162,25 +442,51 @@ export default function Home() {
         return res.json();
       })
       .then((data) => {
-        setParameters(data.parameters || []);
-        setLogs(data.logs || []);
+        const rawParams = data.parameters || [];
+        const uniqueParams = deduplicateParameters(rawParams);
+        setParameters(uniqueParams);
+        const rawLogs = data.logs || [];
+        const uniqueLogs: LogEntry[] = [];
+        const seenLogDates = new Set<string>();
+        rawLogs.forEach((l: LogEntry) => {
+          if (l && l.date) {
+            const dateKey = l.date.includes("GMT") ? getLocalDateString(new Date(l.date)) : l.date;
+            if (!seenLogDates.has(dateKey)) {
+              seenLogDates.add(dateKey);
+              uniqueLogs.push(l);
+            }
+          }
+        });
+        setLogs(uniqueLogs);
+        setPeriodLogs(data.periodLogs || []);
+        if (data.weatherLogs) {
+          setWeatherLogs(data.weatherLogs);
+        }
+        if (data.periodSettings) {
+          setPeriodSettings(data.periodSettings);
+        }
+
+        if (uniqueParams.length > 0) {
+          setSelectedCorrelationParams(uniqueParams.slice(0, 4).map((p: any) => p.id));
+        }
+
         setMounted(true);
       })
       .catch((err) => {
         console.error("Error loading server data:", err);
-        // Set empty states on failure so the page still works
         setParameters([]);
         setLogs([]);
+        setPeriodLogs([]);
         setMounted(true);
       });
   }, []);
 
-  // Initialize slider inputs for loaded parameters
+  // Sync sliders state with parameters
   useEffect(() => {
     if (parameters.length > 0) {
-      setPainLevels(prev => {
+      setPainLevels((prev) => {
         const next = { ...prev };
-        parameters.forEach(p => {
+        parameters.forEach((p) => {
           if (next[p.id] === undefined) {
             next[p.id] = 0;
           }
@@ -190,7 +496,52 @@ export default function Home() {
     }
   }, [parameters]);
 
-  // Save logs to storage
+  // Sync inputs when selected calendar date changes
+  useEffect(() => {
+    if (mounted) {
+      setDate(selectedCalendarDate);
+
+      const log = periodLogs.find((l) => l.date === selectedCalendarDate);
+      if (log) {
+        setFlow(log.flow || "none");
+        setIsPeriodStart(!!log.isPeriodStart || log.flow === "started");
+        setSelectedSymptoms(log.symptoms || []);
+        setPeriodNotes(log.notes || "");
+        setMoodSwings(log.moodSwings || []);
+        setMoodLevels(log.moodLevels || []);
+        setInputEnergy(log.energyLevel !== undefined ? log.energyLevel : 7);
+      } else {
+        setFlow("none");
+        setIsPeriodStart(false);
+        setSelectedSymptoms([]);
+        setPeriodNotes("");
+        setMoodSwings([]);
+        setMoodLevels([]);
+        setInputEnergy(7);
+      }
+
+      // Also sync biometric logs for this date into pain levels & notes
+      const bioLog = logs.find((l) => {
+        const logDate = l.date.includes("GMT") ? getLocalDateString(new Date(l.date)) : l.date;
+        return logDate === selectedCalendarDate;
+      });
+      if (bioLog) {
+        setPainLevels(bioLog.painLevels || {});
+        setNotes(bioLog.notes || "");
+        setEditingId(bioLog.id || null);
+      } else {
+        setPainLevels((prev) => {
+          const reset: PainLevels = {};
+          parameters.forEach((p) => (reset[p.id] = 0));
+          return reset;
+        });
+        setNotes("");
+        setEditingId(null);
+      }
+    }
+  }, [selectedCalendarDate, periodLogs, logs, mounted, parameters]);
+
+  // Save actions
   const saveLogsToStorage = async (updatedLogs: LogEntry[]) => {
     setLogs(updatedLogs);
     try {
@@ -199,10 +550,10 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logs: updatedLogs }),
       });
-      if (!res.ok) throw new Error("Failed to save logs to server");
+      if (!res.ok) throw new Error("Failed to save logs");
     } catch (err) {
       console.error("Error saving logs:", err);
-      showToast("Failed to save logs to the server.", "error");
+      showToast("Failed to save logs to server.", "error");
     }
   };
 
@@ -214,83 +565,126 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ parameters: updatedParams }),
       });
-      if (!res.ok) throw new Error("Failed to save parameters to server");
+      if (!res.ok) throw new Error("Failed to save parameters");
     } catch (err) {
       console.error("Error saving parameters:", err);
-      showToast("Failed to save parameters to the server.", "error");
+      showToast("Failed to save parameters.", "error");
+    }
+  };
+
+  const savePeriodLogsToStorage = async (updatedPeriodLogs: PeriodLogEntry[]) => {
+    setPeriodLogs(updatedPeriodLogs);
+    try {
+      const res = await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodLogs: updatedPeriodLogs }),
+      });
+      if (!res.ok) throw new Error("Failed to save period logs");
+    } catch (err) {
+      console.error("Error saving period logs:", err);
+      showToast("Failed to save period logs.", "error");
     }
   };
 
   const handleAddParameter = (e: React.FormEvent) => {
     e.preventDefault();
-    const label = newParamLabel.trim();
+    const label = newParamLabel.trim().replace(/\s+/g, " ");
     if (!label) return;
+
+    const normLabel = label.toLowerCase();
+    if (["vital", "period", "weather", "energy"].includes(normLabel)) {
+      showToast("Cannot use vital, period, weather, or energy as a biometric parameter.", "error");
+      return;
+    }
+
+    const exists = parameters.some(
+      (p) => p.label.trim().replace(/\s+/g, " ").toLowerCase() === normLabel
+    );
+
+    if (exists) {
+      showToast(`Parameter "${label}" already exists!`, "error");
+      setNewParamLabel("");
+      return;
+    }
 
     const id = "param_" + Date.now();
     const newParam: BiometricParameter = { id, label };
-
     const updated = [...parameters, newParam];
     saveParameters(updated);
 
-    setPainLevels(prev => ({
-      ...prev,
-      [id]: 0,
-    }));
-
+    setPainLevels((prev) => ({ ...prev, [id]: 0 }));
     setNewParamLabel("");
-    showToast(`Parameter "${label}" successfully added!`);
+    showToast(`Added parameter "${label}"`);
   };
 
-  const handleRenameParameter = (id: string, newLabel: string) => {
-    const updated = parameters.map(p => p.id === id ? { ...p, label: newLabel } : p);
+  const handleSaveEditedParameter = (id: string) => {
+    const label = editingLabel.trim().replace(/\s+/g, " ");
+    if (!label) {
+      showToast("Parameter label cannot be empty.", "error");
+      return;
+    }
+
+    const normLabel = label.toLowerCase();
+    if (["vital", "period", "weather", "energy"].includes(normLabel)) {
+      showToast("Cannot use vital, period, weather, or energy as a biometric parameter.", "error");
+      return;
+    }
+
+    const exists = parameters.some(
+      (p) => p.id !== id && p.label.trim().replace(/\s+/g, " ").toLowerCase() === normLabel
+    );
+
+    if (exists) {
+      showToast(`Parameter "${label}" already exists!`, "error");
+      return;
+    }
+
+    const updated = parameters.map((p) => (p.id === id ? { ...p, label } : p));
     saveParameters(updated);
+    setEditingId(null);
+    setEditingLabel("");
+    showToast(`Updated parameter label to "${label}"`);
   };
 
   const handleDeleteParameter = (id: string) => {
     if (parameters.length <= 1) {
-      showToast("You must keep at least one tracking parameter.", "error");
+      showToast("Must keep at least one parameter.", "error");
       return;
     }
-    if (confirm(`Are you sure you want to stop tracking "${parameters.find(p => p.id === id)?.label || id}"? Existing historical logs won't be deleted, but this parameter will no longer be active.`)) {
-      const updated = parameters.filter(p => p.id !== id);
+    if (confirm(`Remove parameter "${parameters.find((p) => p.id === id)?.label || id}"?`)) {
+      const updated = parameters.filter((p) => p.id !== id);
       saveParameters(updated);
-
-      setPainLevels(prev => {
+      setPainLevels((prev) => {
         const next = { ...prev };
         delete next[id];
         return next;
       });
-
-      if (activePart === id) setActivePart(null);
-      if (chartView === id) setChartView("all");
     }
   };
 
   const handleSliderChange = (part: keyof PainLevels, val: number) => {
-    setPainLevels((prev) => ({
-      ...prev,
-      [part]: val,
-    }));
+    setPainLevels((prev) => ({ ...prev, [part]: val }));
   };
 
-  // Submit today's log
   const handleSaveLog = (e: React.FormEvent) => {
     e.preventDefault();
     if (!date) return;
 
-    // Check if entry for this date already exists
-    const existingIndex = logs.findIndex((l) => l.date === date);
+    const existingIndex = logs.findIndex((l) => {
+      const logDate = l.date.includes("GMT") ? getLocalDateString(new Date(l.date)) : l.date;
+      return logDate === date;
+    });
+
     let updatedLogs = [...logs];
 
     if (existingIndex >= 0) {
-      // Overwrite/Merge log
       updatedLogs[existingIndex] = {
         ...updatedLogs[existingIndex],
         painLevels: { ...painLevels },
         notes: notes,
       };
     } else {
-      // Create new log entry
       const newEntry: LogEntry = {
         id: Date.now().toString(),
         date: date,
@@ -300,66 +694,103 @@ export default function Home() {
       updatedLogs.push(newEntry);
     }
 
-    // Sort chronologically
     updatedLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
     saveLogsToStorage(updatedLogs);
     setNotes("");
     setEditingId(null);
-
-    // Pulse animation or feedback
-    showToast(`Log successfully saved for ${date}!`, "success");
+    showToast(`Daily biometric log saved for ${date}!`, "success");
   };
 
-  const handleDeleteLog = (id: string) => {
-    if (confirm("Are you sure you want to delete this daily log entry?")) {
-      const filtered = logs.filter((l) => l.id !== id);
-      saveLogsToStorage(filtered);
+  const handleTogglePeriodStart = () => {
+    const nextStart = !isPeriodStart;
+    setIsPeriodStart(nextStart);
+
+    const existingIndex = periodLogs.findIndex((l) => l.date === selectedCalendarDate);
+    let updatedPeriodLogs = [...periodLogs];
+
+    if (existingIndex >= 0) {
+      updatedPeriodLogs[existingIndex] = {
+        ...updatedPeriodLogs[existingIndex],
+        isPeriodStart: nextStart,
+        flow: nextStart ? "started" : "none",
+      };
+    } else {
+      updatedPeriodLogs.push({
+        date: selectedCalendarDate,
+        isPeriodStart: nextStart,
+        flow: nextStart ? "started" : "none",
+        symptoms: [],
+        notes: "",
+        moodSwings: [],
+        moodLevels: [],
+        energyLevel: inputEnergy,
+      });
+    }
+
+    savePeriodLogsToStorage(updatedPeriodLogs);
+    showToast(
+      nextStart
+        ? `Marked period start for ${selectedCalendarDate}`
+        : `Removed period start marker for ${selectedCalendarDate}`
+    );
+  };
+
+  const handleSavePeriodLog = (e: React.FormEvent) => {
+    e.preventDefault();
+    const existingIndex = periodLogs.findIndex((l) => l.date === selectedCalendarDate);
+    let updatedPeriodLogs = [...periodLogs];
+
+    if (existingIndex >= 0) {
+      const existing = updatedPeriodLogs[existingIndex];
+      updatedPeriodLogs[existingIndex] = {
+        ...existing,
+        symptoms: selectedSymptoms,
+        notes: periodNotes,
+        moodSwings: moodSwings,
+        moodLevels: moodLevels,
+        energyLevel: inputEnergy,
+      };
+    } else {
+      updatedPeriodLogs.push({
+        date: selectedCalendarDate,
+        isPeriodStart: isPeriodStart,
+        flow: isPeriodStart ? "started" : "none",
+        symptoms: selectedSymptoms,
+        notes: periodNotes,
+        moodSwings: moodSwings,
+        moodLevels: moodLevels,
+        energyLevel: inputEnergy,
+      });
+    }
+
+    savePeriodLogsToStorage(updatedPeriodLogs);
+    showToast(`Saved symptoms & vitality notes for ${selectedCalendarDate}`);
+  };
+
+  const handleCorrelationParamToggle = (paramId: string) => {
+    if (selectedCorrelationParams.includes(paramId)) {
+      if (selectedCorrelationParams.length === 1) {
+        showToast("Select at least one metric to visualize.", "info");
+        return;
+      }
+      setSelectedCorrelationParams((prev) => prev.filter((id) => id !== paramId));
+    } else {
+      setSelectedCorrelationParams((prev) => [...prev, paramId]);
     }
   };
 
-  const handleEditLog = (entry: LogEntry) => {
-    setPainLevels(entry.painLevels);
-    setNotes(entry.notes);
-    setDate(entry.date);
-    setEditingId(entry.id);
-
-    // Focus the inputs
-    slidersSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const toggleSymptom = (symptom: string) => {
+    setSelectedSymptoms((prev) =>
+      prev.includes(symptom) ? prev.filter((s) => s !== symptom) : [...prev, symptom]
+    );
   };
 
-  const handleExportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logs, null, 2));
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `pain_tracking_data_${new Date().toISOString().split("T")[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  const toggleMood = (mood: string) => {
+    setMoodLevels((prev) =>
+      prev.includes(mood) ? prev.filter((m) => m !== mood) : [...prev, mood]
+    );
   };
 
-  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const imported = JSON.parse(event.target?.result as string);
-        if (Array.isArray(imported) && imported.length > 0 && imported[0].painLevels) {
-          saveLogsToStorage(imported);
-          showToast(`Successfully imported ${imported.length} pain log entries!`, "success");
-        } else {
-          showToast("Invalid data format. Please upload a valid JSON file generated from this application.", "error");
-        }
-      } catch (err) {
-        showToast("Error parsing JSON file.", "error");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Get color styles for inputs based on rating
   const getSeverityStyles = (val: number) => {
     if (val === 0) return { bg: "bg-cyan-950/40", text: "text-cyan-400", border: "border-cyan-500/20" };
     if (val <= 3) return { bg: "bg-yellow-950/40", text: "text-yellow-400", border: "border-yellow-500/20" };
@@ -367,658 +798,775 @@ export default function Home() {
     return { bg: "bg-red-950/40", text: "text-red-400", border: "border-red-500/20" };
   };
 
-  // Filter logs based on date time-range limits
-  const numLogsToShow = timeRange === "7d" ? 7 : 30;
-  const sortedLogs = [...logs].slice(-numLogsToShow);
-
-  const isMultiLine = chartView === "all";
-
-  // Build series and categories for Highcharts
-  const chartCategories = sortedLogs.map(log => formatDateString(log.date));
-
-  let chartSeries: any[] = [];
-  if (chartView === "all") {
-    chartSeries = parameters.map((param, index) => ({
-      name: param.label,
-      data: sortedLogs.map(log => (log.painLevels && log.painLevels[param.id]) ?? 0),
-      color: COLOR_PALETTE[index % COLOR_PALETTE.length],
-    }));
-  } else if (chartView === "average") {
-    chartSeries = [{
-      name: "Average Index",
-      data: sortedLogs.map(log => {
-        let sum = 0;
-        let count = 0;
-        parameters.forEach(p => {
-          if (log.painLevels && log.painLevels[p.id] !== undefined) {
-            sum += log.painLevels[p.id];
-            count++;
-          }
-        });
-        return count > 0 ? Number((sum / count).toFixed(1)) : 0;
-      }),
-      color: "#22d3ee",
-    }];
-  } else {
-    const param = parameters.find(p => p.id === chartView);
-    const label = param?.label || String(chartView);
-    const paramIndex = parameters.findIndex(p => p.id === chartView);
-    const color = COLOR_PALETTE[paramIndex >= 0 ? paramIndex % COLOR_PALETTE.length : 0];
-
-    chartSeries = [{
-      name: label,
-      data: sortedLogs.map(log => (log.painLevels && log.painLevels[String(chartView)]) ?? 0),
-      color: color,
-    }];
-  }
-
-  const highchartsOptions: Highcharts.Options = {
-    chart: {
-      type: "line",
-      backgroundColor: "transparent",
-      style: {
-        fontFamily: "var(--font-mono, monospace), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-      },
-      height: 280,
-    },
-    title: {
-      text: undefined,
-    },
-    credits: {
-      enabled: false,
-    },
-    xAxis: {
-      categories: chartCategories,
-      lineColor: "#27272a",
-      tickColor: "#27272a",
-      crosshair: {
-        color: "rgba(63, 63, 70, 0.4)",
-        width: 1,
-        dashStyle: "Dash" as any,
-      },
-      labels: {
-        style: {
-          color: "#a1a1aa",
-          fontSize: "10px",
-        },
-      },
-    },
-    yAxis: {
-      title: {
-        text: undefined,
-      },
-      min: 0,
-      max: 10,
-      tickInterval: 2,
-      gridLineColor: "rgba(63, 63, 70, 0.3)",
-      gridLineDashStyle: "Dash" as any,
-      labels: {
-        style: {
-          color: "#a1a1aa",
-          fontSize: "10px",
-        },
-      },
-    },
-    tooltip: {
-      backgroundColor: "#09090b",
-      borderColor: "#27272a",
-      borderRadius: 8,
-      borderWidth: 1,
-      style: {
-        color: "#e4e4e7",
-        fontSize: "11px",
-      },
-      shared: true,
-      shadow: false,
-      useHTML: true,
-      headerFormat: '<span style="font-size: 10px; color: #71717a; margin-bottom: 4px; display: block;">{point.key}</span>',
-      pointFormat: '<div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">' +
-                   '<span style="width: 8px; height: 8px; border-radius: 50%; background-color: {series.color}; display: inline-block;"></span>' +
-                   '<span style="color: #a1a1aa">{series.name}:</span> ' +
-                   '<span style="font-weight: bold; color: #fff">{point.y}</span>' +
-                   '</div>',
-    },
-    plotOptions: {
-      line: {
-        marker: {
-          radius: 4,
-          symbol: "circle",
-          lineWidth: 2,
-          lineColor: "#09090b",
-        },
-        lineWidth: 3,
-      },
-      series: {
-        animation: {
-          duration: 400,
-        },
-      },
-    },
-    legend: {
-      enabled: chartView === "all",
-      itemStyle: {
-        color: "#a1a1aa",
-        fontSize: "10px",
-        fontWeight: "normal",
-      },
-      itemHoverStyle: {
-        color: "#f4f4f5",
-      },
-      itemHiddenStyle: {
-        color: "#3f3f46",
-      },
-    },
-    series: chartSeries,
-  };
-
-  // Calculate current statistics
-  const getStatistics = () => {
+  // Stats calculation
+  const stats = (() => {
     if (logs.length === 0 || parameters.length === 0) {
       return { avgToday: 0, highestPart: "N/A", weeklyChange: "0%", trendStatus: "No Data" };
     }
-
     const latest = logs[logs.length - 1];
-
-    // Average today
-    let todaySum = 0;
-    let todayCount = 0;
-    parameters.forEach(p => {
+    let todaySum = 0,
+      todayCount = 0;
+    parameters.forEach((p) => {
       if (latest.painLevels && latest.painLevels[p.id] !== undefined) {
         todaySum += latest.painLevels[p.id];
         todayCount++;
       }
     });
     const avgToday = todayCount > 0 ? Number((todaySum / todayCount).toFixed(1)) : 0;
-
-    // Highest Part
-    let maxVal = -1;
-    let highestParamLabel = "N/A";
-    parameters.forEach(p => {
+    let maxVal = -1,
+      highestParamLabel = "N/A";
+    parameters.forEach((p) => {
       const val = (latest.painLevels && latest.painLevels[p.id]) ?? 0;
       if (val > maxVal) {
         maxVal = val;
         highestParamLabel = p.label;
       }
     });
-
-    // Weekly change trend calculation
-    let weeklyChange = "0%";
-    let trendStatus = "Stable";
+    let weeklyChange = "0%",
+      trendStatus = "Stable";
     if (logs.length >= 7) {
       const pastLog = logs[logs.length - 7];
-
-      let pastSum = 0;
-      let pastCount = 0;
-      parameters.forEach(p => {
+      let pastSum = 0,
+        pastCount = 0;
+      parameters.forEach((p) => {
         if (pastLog.painLevels && pastLog.painLevels[p.id] !== undefined) {
           pastSum += pastLog.painLevels[p.id];
           pastCount++;
         }
       });
       const pastAvg = pastCount > 0 ? pastSum / pastCount : 0;
-
       if (pastAvg > 0) {
         const changePercent = ((avgToday - pastAvg) / pastAvg) * 100;
         weeklyChange = `${Math.abs(Math.round(changePercent))}%`;
         trendStatus = changePercent < 0 ? "Improving" : changePercent > 0 ? "Elevating" : "Stable";
       }
     }
+    return { avgToday, highestPart: highestParamLabel, weeklyChange, trendStatus };
+  })();
 
-    return {
-      avgToday,
-      highestPart: highestParamLabel,
-      weeklyChange,
-      trendStatus,
-    };
+  // Cycle calculations
+  const startDates = getPeriodStartDates(periodLogs);
+  const lmpDate = startDates.length > 0 ? startDates[startDates.length - 1] : null;
+  const todayDateObj = new Date();
+  todayDateObj.setHours(0, 0, 0, 0);
+  const cycleInfoToday = getCycleInfoForDate(todayDateObj, startDates, periodSettings);
+
+  // Energy & Weather calculations
+  const currentEnergy = inputEnergy !== undefined ? inputEnergy : 8;
+  const energyPercent = currentEnergy * 10;
+
+  // Calendar Helpers
+  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11);
+      setCalendarYear(calendarYear - 1);
+    } else {
+      setCalendarMonth(calendarMonth - 1);
+    }
+  };
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0);
+      setCalendarYear(calendarYear + 1);
+    } else {
+      setCalendarMonth(calendarMonth + 1);
+    }
   };
 
-  const stats = getStatistics();
+  const cyclePercent = lmpDate && cycleInfoToday.cycleDay > 0
+    ? Math.min(100, Math.max(0, (cycleInfoToday.cycleDay / 28) * 100))
+    : 0;
 
+  // Generate last 30 continuous calendar days ending today for clear daily tracking
+  const continuousCalendarDates = (() => {
+    const dates: string[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      dates.push(getLocalDateString(d));
+    }
+    return dates;
+  })();
 
-  if (!mounted) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#09090b] text-zinc-400 p-8">
-        <div className="text-xl font-medium tracking-wide animate-pulse-slow">
-          BOOTING BIOSENTRY NEURAL CORE...
-        </div>
-      </div>
-    );
-  }
+  const datesFormattedForDisplay = continuousCalendarDates.map((d) => formatDateString(d));
+
+  const correlationChartOptions: Highcharts.Options = {
+    chart: {
+      type: "column",
+      backgroundColor: "transparent",
+      style: { fontFamily: "var(--font-geist-mono), sans-serif" },
+      height: 360,
+    },
+    title: { text: undefined },
+    credits: { enabled: false },
+    legend: {
+      itemStyle: { color: "#e4e4e7", fontSize: "12px", fontWeight: "bold" },
+      itemHoverStyle: { color: "#ffffff" },
+    },
+    xAxis: {
+      categories: datesFormattedForDisplay,
+      labels: {
+        style: { color: "#a1a1aa", fontSize: "11px", fontWeight: "600" },
+        rotation: -45,
+      },
+      lineColor: "#3f3f46",
+      tickColor: "#3f3f46",
+      plotLines: continuousCalendarDates
+        .map((dateStr, idx) => {
+          const isStart = startDates.some((sDate) => getLocalDateString(sDate) === dateStr);
+          if (!isStart) return null;
+          return {
+            color: "#ec4899",
+            dashStyle: "ShortDash" as const,
+            width: 2,
+            value: idx,
+            zIndex: 5,
+            label: {
+              text: "🩸 Period Start",
+              style: {
+                color: "#f472b6",
+                fontWeight: "bold",
+                fontSize: "10px",
+              },
+              rotation: 0,
+              y: -10,
+            },
+          };
+        })
+        .filter(Boolean) as Highcharts.XAxisPlotLinesOptions[],
+    },
+    yAxis: {
+      title: {
+        text: "Pain Level (0 to 10)",
+        style: { color: "#38bdf8", fontSize: "12px", fontWeight: "bold" },
+      },
+      min: 0,
+      max: 10,
+      gridLineColor: "#27272a",
+      labels: { style: { color: "#a1a1aa", fontSize: "11px" } },
+    },
+    tooltip: {
+      shared: true,
+      backgroundColor: "rgba(9, 9, 11, 0.95)",
+      borderColor: "#3f3f46",
+      borderRadius: 12,
+      style: { color: "#f4f4f5", fontSize: "12px" },
+    },
+    plotOptions: {
+      column: {
+        borderRadius: 4,
+        borderWidth: 0,
+        groupPadding: 0.1,
+        pointPadding: 0.02,
+      },
+    },
+    series: [
+      ...parameters
+        .filter((p) => selectedCorrelationParams.includes(p.id))
+        .map((p, idx) => ({
+          name: p.label,
+          type: "column" as const,
+          data: continuousCalendarDates.map((dateStr) => {
+            const entry = logs.find((l) => {
+              const logDate = l.date.includes("GMT") ? getLocalDateString(new Date(l.date)) : l.date;
+              return logDate === dateStr;
+            });
+            return entry && entry.painLevels && entry.painLevels[p.id] !== undefined
+              ? entry.painLevels[p.id]
+              : 0;
+          }),
+          color: COLOR_PALETTE[idx % COLOR_PALETTE.length],
+          tooltip: { valueSuffix: " / 10 Pain" },
+        })),
+      {
+        name: "Period Start Date",
+        type: "scatter" as const,
+        color: "#ec4899",
+        marker: {
+          symbol: "circle",
+          radius: 6,
+          fillColor: "#ec4899",
+          lineColor: "#ffffff",
+          lineWidth: 2,
+        },
+        data: continuousCalendarDates
+          .map((dateStr, idx) => {
+            const isStart = startDates.some((sDate) => getLocalDateString(sDate) === dateStr);
+            return isStart ? { x: idx, y: 0, name: formatDateString(dateStr) } : null;
+          })
+          .filter((item): item is { x: number; y: number; name: string } => item !== null),
+        tooltip: {
+          headerFormat: "",
+          pointFormat: "🩸 <b>Period Started</b> on {point.name}",
+        },
+      },
+    ],
+  };
 
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-8 max-w-7xl mx-auto w-full gap-8">
-      {/* HEADER SECTION */}
+    <div className="flex-1 flex flex-col p-4 md:p-8 max-w-7xl mx-auto w-full gap-8 text-zinc-100">
+      {/* HEADER WITH TWO TABS SWITCH */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-zinc-800/80">
         <div>
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-xs font-mono tracking-widest text-zinc-500 uppercase">SYSTEM ACTIVE</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse shadow-lg shadow-cyan-500/50" />
+            <span className="text-xs font-mono tracking-widest text-zinc-400 uppercase">SYSTEM ONLINE</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-500 bg-clip-text text-transparent">
-            Pooja's Pain Tracking
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
+            Pooja's Health Tracker
           </h1>
-          {/* <p className="text-sm text-zinc-400 mt-1">
-            Holographic biometric monitoring of upper-body muscular dynamics
-          </p> */}
         </div>
 
-        {/* <div className="flex gap-3">
-          <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60 cursor-pointer text-xs font-medium transition">
-            <span>Import Logs</span>
-            <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
-
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-          </label>
+        {/* TAB CONTROLS */}
+        <div className="flex bg-zinc-900/90 border border-zinc-800 p-1.5 rounded-2xl gap-1.5 shadow-xl">
           <button
-            onClick={handleExportData}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60 text-xs font-medium transition"
+            onClick={() => setActiveTab("dashboard")}
+            className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2.5 ${activeTab === "dashboard"
+              ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-500/10"
+              : "text-zinc-400 hover:text-zinc-200 border border-transparent"
+              }`}
           >
-            <span>Export Data</span>
-
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></svg>
+            <span>Dashboard</span>
           </button>
-        </div> */}
+          <button
+            onClick={() => setActiveTab("input")}
+            className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2.5 ${activeTab === "input"
+              ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-500/10"
+              : "text-zinc-400 hover:text-zinc-200 border border-transparent"
+              }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            <span>Daily Input & Logs</span>
+          </button>
+        </div>
       </header>
 
-      {/* METRICS DASHBOARD GRID */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="glass-panel p-4 flex flex-col">
-          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Highest Severity Area</span>
-          <span className="text-lg font-bold mt-3 text-red-400 truncate">{stats.highestPart}</span>
-          <span className="text-xs text-zinc-500 mt-1">Requires focus and attention</span>
-        </div>
-
-        <div className="glass-panel p-4 flex flex-col">
-          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Weekly Progression</span>
-          <span className={`text-3xl font-black mt-2 ${stats.trendStatus === "Improving" ? "text-green-400" : stats.trendStatus === "Elevating" ? "text-red-400" : "text-yellow-400"}`}>
-            {stats.weeklyChange}
-          </span>
-          <span className="text-xs text-zinc-500 mt-1">
-            Status: <span className="font-semibold text-zinc-300">{stats.trendStatus}</span>
-          </span>
-        </div>
-
-        <div className="glass-panel p-4 flex flex-col">
-          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Recorded Days</span>
-          <span className="text-3xl font-black mt-2 text-indigo-400">{logs.length} <span className="text-xs font-normal text-zinc-500">logs</span></span>
-          <span className="text-xs text-zinc-500 mt-1">History of logged metrics</span>
-        </div>
-      </section>
-
-      {/* HISTORICAL TIMELINE LOG */}
-      <div className="glass-panel p-3 flex flex-col gap-4 w-full">
-        <h2 className="text-xl font-bold text-zinc-100 pb-3 border-b border-zinc-800/60">Biometric Archives</h2>
-
-        {logs.length === 0 ? (
-          <div className="text-center py-8 text-xs text-zinc-500 font-mono uppercase">
-            Zero Logs Committed. Add entries above.
-          </div>
-        ) : (
-          <div className="overflow-x-auto w-full max-h-[600px] border border-zinc-800/60 rounded-xl">
-            <table className="w-full text-left text-sm md:text-base font-mono border-collapse">
-              <thead>
-                <tr className="bg-zinc-900/80 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-20">
-                  <th className="p-3 sticky left-0 bg-zinc-900 z-30 border-r border-zinc-800 min-w-[140px] max-w-[140px]">
-                    Parameter
-                  </th>
-                  {[...logs].reverse().map((entry) => (
-                    <th key={entry.id} className="p-3 text-center whitespace-nowrap min-w-[100px] border-r border-zinc-800/50">
-                      {formatDateString(entry.date)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {/* 1. Parameter Rows */}
-                {parameters.map((param, index) => (
-                  <tr key={param.id} className="hover:bg-zinc-900/30 transition-colors">
-                    {/* Sticky Parameter Name */}
-                    <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-300 z-10 border-r border-zinc-800 min-w-[140px] max-w-[140px]">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                        <span>{param.label}</span>
-                      </span>
-                    </td>
-                    {/* Values for each date */}
-                    {[...logs].reverse().map((entry) => {
-                      const val = (entry.painLevels && entry.painLevels[param.id]) ?? 0;
-                      const styles = getSeverityStyles(val);
-                      return (
-                        <td key={entry.id} className="p-3 text-center border-r border-zinc-800/40 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded font-bold ${styles.bg} ${styles.text} border ${styles.border}`}>
-                            {val}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-
-                {/* 2. Notes Row */}
-                <tr className="hover:bg-zinc-900/30 transition-colors">
-                  <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-400 z-10 border-r border-zinc-800 min-w-[130px] max-w-[130px]">
-                    Notes
-                  </td>
-                  {[...logs].reverse().map((entry) => (
-                    <td key={entry.id} className="p-3 text-zinc-400 max-w-[200px] truncate italic border-r border-zinc-800/40" title={entry.notes}>
-                      {entry.notes || "-"}
-                    </td>
-                  ))}
-                </tr>
-
-                {/* 3. Actions Row */}
-                <tr className="hover:bg-zinc-900/30 transition-colors">
-                  <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-400 z-10 border-r border-zinc-800 min-w-[130px] max-w-[130px]">
-                    Actions
-                  </td>
-                  {[...logs].reverse().map((entry) => (
-                    <td key={entry.id} className="p-3 text-center border-r border-zinc-800/40">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleEditLog(entry)}
-                          className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition"
-                          title="Edit entry"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z" /></svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteLog(entry.id)}
-                          className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-red-400 transition"
-                          title="Delete entry"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                        </button>
-                      </div>
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* PROGRESSION ANALYTICS CHART */}
-      <div className="glass-panel p-3 flex flex-col gap-4 w-full">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-zinc-800/60">
-          <div>
-            <h2 className="text-xl font-bold text-zinc-100">Telemetry Progression</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Analytic visual trends of pain signals</p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={chartView}
-              onChange={(e) => setChartView(e.target.value as any)}
-              className="bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 px-2 py-1.5 rounded outline-none focus:border-cyan-500 cursor-pointer"
-            >
-              <option value="all">All Parameters ({parameters.length} Lines)</option>
-              <option value="average">Average Index</option>
-              {parameters.map((param) => (
-                <option key={param.id} value={param.id}>
-                  {param.label}
-                </option>
-              ))}
-            </select>
-
-            <div className="flex bg-zinc-900 rounded border border-zinc-800 p-0.5 text-xs">
-              <button
-                onClick={() => setTimeRange("7d")}
-                className={`px-3 py-1 rounded transition ${timeRange === "7d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-              >
-                7 Logs
-              </button>
-              <button
-                onClick={() => setTimeRange("30d")}
-                className={`px-3 py-1 rounded transition ${timeRange === "30d" ? "bg-cyan-600 text-white font-semibold" : "text-zinc-400 hover:text-zinc-200"
-                  }`}
-              >
-                30 Logs
-              </button>
+      {/* ========================================================================= */}
+      {/* TAB 1: DASHBOARD */}
+      {/* ========================================================================= */}
+      {activeTab === "dashboard" && (
+        <div className="flex flex-col gap-8 animate-fade-in">
+          {/* TOP SUMMARY CARDS GRID (CURRENT STATUS, WEATHER, ENERGY) */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* CARD 1: CURRENT STATUS & HIGHEST PAIN */}
+            <div className="glass-panel p-5 flex flex-col justify-between relative overflow-hidden border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Current Pain Status</span>
+                <span className="h-2 w-2 rounded-full bg-red-400 animate-ping" />
+              </div>
+              <div className="my-3">
+                <div className="text-2xl font-black text-red-400 truncate">{stats.highestPart}</div>
+                <div className="text-xs text-zinc-400 mt-1">Today's Avg Severity: <span className="text-zinc-200 font-bold">{stats.avgToday}/10</span></div>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-zinc-800/60 text-xs">
+                <span className="text-zinc-500">Weekly Trend</span>
+                <span className={`font-mono font-bold px-2 py-0.5 rounded ${stats.trendStatus === "Improving" ? "bg-emerald-950/60 text-emerald-400" : stats.trendStatus === "Elevating" ? "bg-red-950/60 text-red-400" : "bg-yellow-950/60 text-yellow-400"}`}>
+                  {stats.weeklyChange} ({stats.trendStatus})
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="w-full bg-zinc-950/40 rounded-lg border border-zinc-900 p-2 mt-2">
-          {sortedLogs.length > 0 ? (
-            <HighchartsReact highcharts={Highcharts} options={highchartsOptions} />
-          ) : (
-            <div className="relative w-full h-[220px] flex items-center justify-center text-xs text-zinc-500 font-mono">
-              NO CHRONOLOGICAL BIOMETRIC DATA TO PLOT
+            {/* CARD 2: WEATHER DETAILS */}
+            <div className="glass-panel p-5 flex flex-col justify-between relative border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Weather</span>
+                  {weather.city && (
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-800/80 text-amber-400 font-mono">
+                      {weather.city}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xl">{weather.icon}</span>
+              </div>
+              <div className="my-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-amber-300">
+                    {weather.loading ? "--" : `${weather.temp}°C`}
+                  </span>
+                  <span className="text-xs text-zinc-400">{weather.condition}</span>
+                </div>
+                <div className="flex gap-4 text-xs text-zinc-400 mt-2 font-mono">
+                  <span>💧 Humidity: {weather.humidity}%</span>
+                  <span>hPa: {weather.pressure}</span>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-zinc-800/60 text-[11px] text-amber-400/90 font-medium">
+                💡 {weather.advice}
+              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* DAILY LOGGER & LEGEND SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 flex flex-col gap-8">
-          <div ref={slidersSectionRef} className={`glass-panel glass-panel-glow p-3 flex flex-col ${isInputExpanded ? 'gap-6' : 'gap-0'}`}>
-            <div className={`flex justify-between items-center ${isInputExpanded ? 'pb-4 border-b border-zinc-800/60' : ''}`}>
-              <div className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
-                  {editingId ? "Edit Telemetry Log" : "Daily Biometric Input"}
+            {/* CARD 3: ENERGY & VITALITY LEVELS */}
+            <div className="glass-panel p-5 flex flex-col justify-between relative border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Energy & Vitality</span>
+                <span className="text-emerald-400 text-xs font-mono font-bold">{energyPercent}%</span>
+              </div>
+              <div className="my-2 flex flex-col gap-2">
+                <div className="w-full bg-zinc-950 h-3 rounded-full overflow-hidden p-0.5 border border-zinc-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 transition-all duration-500"
+                    style={{ width: `${energyPercent}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-zinc-400 font-mono">
+                  <span>Stamina: <strong className="text-emerald-400">High</strong></span>
+                  <span>Recovery: <strong className="text-cyan-400">Good</strong></span>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-zinc-800/60 text-xs text-zinc-400">
+                Logged Vitality: <span className="text-emerald-300 font-bold">{currentEnergy}/10 Rating</span>
+              </div>
+            </div>
+          </section>
+
+          {/* MIDDLE SECTION: CYCLE STATUS & TELEMETRY CORRELATION PLOT */}
+          <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* CYCLE STATUS CARD */}
+            <div className="lg:col-span-4 glass-panel p-6 flex flex-col gap-5 border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+                <h2 className="text-md font-bold text-zinc-100 flex items-center gap-2">
+                  <span className="text-pink-400">🩸</span> Cycle Status
                 </h2>
-                {isInputExpanded && (
-                  <button
-                    type="button"
-                    onClick={() => setIsManagingParams(!isManagingParams)}
-                    className="text-left text-cyan-500 hover:text-cyan-400 transition flex items-center cursor-pointer w-fit"
-                    title={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
-                    aria-label={isManagingParams ? "Back to Sliders" : "Configure Tracking Inputs"}
-                  >
-                    {isManagingParams ? (
-                      <span className="text-xs font-mono flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                        Back to Sliders
-                      </span>
-                    ) : (
-                      <span className="text-xs font-mono flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        Edit
-                      </span>
-                    )}
-                  </button>
-                )}
               </div>
 
-              <div className="flex items-center gap-3">
-                {isInputExpanded && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-400">Date:</span>
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition"
-                    />
-                  </div>
-                )}
+              <div className="flex flex-col items-center justify-center relative py-2">
+                <svg className="w-40 h-40 transform -rotate-90">
+                  <circle cx="80" cy="80" r="60" stroke="rgba(39, 39, 42, 0.8)" strokeWidth="12" fill="transparent" />
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="60"
+                    stroke={cycleInfoToday.color || "#ec4899"}
+                    strokeWidth="12"
+                    fill="transparent"
+                    strokeDasharray={2 * Math.PI * 60}
+                    strokeDashoffset={2 * Math.PI * 60 - (cyclePercent / 100) * 2 * Math.PI * 60}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-black text-white font-mono">
+                    {cycleInfoToday.cycleDay > 0 ? `DAY ${cycleInfoToday.cycleDay}` : "--"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 bg-zinc-950/60 p-4 rounded-xl border border-zinc-800/80 text-xs">
+                <div className="font-bold text-zinc-200 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cycleInfoToday.color }} />
+                  {cycleInfoToday.phaseName}
+                </div>
+                <p className="text-zinc-400 leading-relaxed text-[11px]">{cycleInfoToday.description}</p>
+              </div>
+            </div>
+
+            {/* TELEMETRY CORRELATION PLOT */}
+            <div className="lg:col-span-8 glass-panel p-6 flex flex-col gap-5 border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+              <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-zinc-800/60 gap-2">
+                <div>
+                  <h2 className="text-md font-bold text-zinc-100 flex items-center gap-2">
+                    <span className="text-purple-400">📈</span> 30-day Telemetry Chart
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Continuous Calendar View: Daily Pain Levels (Colored Bars) & Period Start Markers (Pink Dashed Lines)
+                  </p>
+                </div>
+              </div>
+
+              {/* Metric Selectors */}
+              <div className="flex flex-wrap gap-2">
+                {parameters.map((param, index) => {
+                  const isChecked = selectedCorrelationParams.includes(param.id);
+                  return (
+                    <button
+                      key={`metric-btn-${param.id}-${index}`}
+                      onClick={() => handleCorrelationParamToggle(param.id)}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${isChecked
+                        ? "bg-purple-950/40 border-purple-500/50 text-purple-300 shadow"
+                        : "bg-zinc-950/40 border-zinc-800 text-zinc-500 hover:text-zinc-300"
+                        }`}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }}
+                      />
+                      {param.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Highcharts Render */}
+              <div className="w-full bg-zinc-950/60 rounded-xl border border-zinc-800/80 p-2">
+                <HighchartsReact highcharts={Highcharts} options={correlationChartOptions} />
+              </div>
+            </div>
+          </section>
+
+          {/* BOTTOM SECTION: BIOMETRIC ARCHIVES MATRIX */}
+          <section className="glass-panel p-6 flex flex-col gap-4 border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+              <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                <span className="text-cyan-400">📊</span> Biometric Archives
+              </h2>
+              <span className="text-xs font-mono text-zinc-500">{logs.length} Recorded Entries</span>
+            </div>
+
+            {logs.length === 0 ? (
+              <div className="text-center py-10 text-xs text-zinc-500 font-mono uppercase">
+                Zero Logs Committed. Add entries in the Daily Input tab.
+              </div>
+            ) : (
+              <div className="overflow-x-auto w-full max-h-[500px] border border-zinc-800/80 rounded-xl bg-zinc-950/60">
+                <table className="w-full text-left text-xs md:text-sm font-mono border-collapse">
+                  <thead>
+                    <tr className="bg-zinc-900/90 border-b border-zinc-800 text-zinc-400 font-semibold sticky top-0 backdrop-blur z-20">
+                      <th className="p-3 sticky left-0 bg-zinc-900 z-30 border-r border-zinc-800 min-w-[140px]">Parameter</th>
+                      {[...logs].reverse().map((entry, idx) => (
+                        <th key={`th-log-${entry.id || entry.date}-${idx}`} className="p-3 text-center whitespace-nowrap min-w-[100px] border-r border-zinc-800/50">
+                          {formatDateString(entry.date)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60">
+                    {parameters.map((param, index) => (
+                      <tr key={`archive-row-${param.id}-${index}`} className="hover:bg-zinc-900/30 transition-colors">
+                        <td className="p-3 sticky left-0 bg-zinc-950 font-bold text-zinc-300 z-10 border-r border-zinc-800 min-w-[140px]">
+                          {param.label}
+                        </td>
+                        {[...logs].reverse().map((entry, idx) => {
+                          const val = (entry.painLevels && entry.painLevels[param.id]) ?? 0;
+                          return (
+                            <td key={`td-log-${param.id}-${entry.id || entry.date}-${idx}`} className="p-3 text-center border-r border-zinc-800/40 whitespace-nowrap">
+                              <span className={`px-2.5 py-1 rounded font-bold ${getSeverityStyles(val).bg} ${getSeverityStyles(val).text}`}>
+                                {val}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 2: DAILY INPUT & LOGS */}
+      {/* ========================================================================= */}
+      {activeTab === "input" && (
+        <div className="flex flex-col gap-8 animate-fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* LEFT COLUMN: DAILY BIOMETRIC INPUT (PAIN SLIDERS & PARAMETERS) */}
+            <div className="lg:col-span-6 glass-panel p-6 flex flex-col gap-6 border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                    <span className="text-cyan-400">📝</span> Daily Biometric Input
+                  </h2>
+                  <p className="text-xs text-zinc-400">Log pain severity levels across active body parameters</p>
+                </div>
                 <button
-                  type="button"
-                  onClick={() => setIsInputExpanded(!isInputExpanded)}
-                  className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 transition flex items-center justify-center cursor-pointer"
-                  title={isInputExpanded ? "Minimize Daily Input" : "Expand Daily Input"}
-                  aria-label={isInputExpanded ? "Minimize Daily Input" : "Expand Daily Input"}
+                  onClick={() => setIsManagingParams(!isManagingParams)}
+                  className="px-3 py-1.5 text-xs font-mono rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition"
                 >
-                  {isInputExpanded ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                  )}
+                  {isManagingParams ? "Done" : "+ Manage Metrics"}
                 </button>
               </div>
-            </div>
 
-            {isInputExpanded && (
-              isManagingParams ? (
-                <div className="flex flex-col gap-5">
-                  <div className="border-b border-zinc-800/60 pb-4">
-                    <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Add Custom Parameter</h3>
-                    <form onSubmit={handleAddParameter} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="E.g., Left Knee, Neck, Chest, Sleep Quality..."
-                        value={newParamLabel}
-                        onChange={(e) => setNewParamLabel(e.target.value)}
-                        className="flex-1 bg-zinc-900/80 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition placeholder-zinc-600"
-                      />
-                      <button
-                        type="submit"
-                        className="px-4 py-2 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow transition-all cursor-pointer whitespace-nowrap"
-                      >
-                        + Add Parameter
-                      </button>
-                    </form>
-                  </div>
-
-                  <div>
-                    <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Edit Existing Parameters</h3>
-                    <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
-                      {parameters.map((param, index) => (
-                        <div key={param.id} className="flex items-center gap-3 bg-zinc-900/40 border border-zinc-800/60 p-2.5 rounded-lg">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                          <input
-                            type="text"
-                            value={param.label}
-                            onChange={(e) => handleRenameParameter(param.id, e.target.value)}
-                            className="flex-1 bg-transparent text-[15px] text-zinc-200 outline-none border-b border-transparent focus:border-cyan-500 pb-0.5 transition"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteParameter(param.id)}
-                            className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800/80 transition"
-                            title="Delete Parameter"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={handleSaveLog} className="flex flex-col gap-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {parameters.map((param, index) => {
-                      const val = painLevels[param.id] ?? 0;
-                      const severity = getSeverityStyles(val);
-                      const isActive = activePart === param.id;
-
-                      return (
-                        <div
-                          key={param.id}
-                          onClick={() => setActivePart(param.id)}
-                          className={`flex flex-col gap-2 p-3 rounded-lg border transition-all cursor-pointer ${isActive
-                            ? "border-cyan-500 bg-cyan-950/10 shadow-lg shadow-cyan-500/5 scale-[1.01]"
-                            : "border-zinc-800/80 bg-zinc-900/30 hover:border-zinc-700/80"
-                            }`}
-                        >
-                          <div className="flex justify-between items-center text-xs">
-                            <span className={`font-semibold text-[15px] flex items-center gap-1.5 ${isActive ? "text-cyan-300" : "text-zinc-300"}`}>
-                              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length] }} />
-                              {param.label}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded font-mono font-bold ${severity.bg} ${severity.text} border ${severity.border}`}>
-                              {val}/10
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-3 mt-1" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-[10px] text-zinc-500 font-mono">0</span>
-                            <input
-                              type="range"
-                              min="0"
-                              max="10"
-                              step="1"
-                              value={val}
-                              onChange={(e) => handleSliderChange(param.id, parseInt(e.target.value))}
-                              className="flex-1 accent-cyan-400 bg-zinc-800 rounded-lg appearance-none h-1.5 cursor-pointer outline-none"
-                            />
-                            <span className="text-[10px] text-zinc-500 font-mono">10</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-semibold text-zinc-400">Daily Symptoms & Notes</label>
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="E.g., Stiffness after chest day, anterior deltoid felt tight during push-ups, slept awkwardly..."
-                      rows={2}
-                      className="w-full bg-zinc-900/80 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-200 outline-none focus:border-cyan-500 transition resize-none placeholder-zinc-600"
+              {/* Add/Manage Parameter Bar */}
+              {isManagingParams && (
+                <div className="p-4 bg-zinc-950/80 rounded-xl border border-zinc-800 flex flex-col gap-3">
+                  <span className="text-xs font-bold text-zinc-300">Add & Edit Biometric Parameters</span>
+                  <form onSubmit={handleAddParameter} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Migraine, Lower Back..."
+                      value={newParamLabel}
+                      onChange={(e) => setNewParamLabel(e.target.value)}
+                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
                     />
-                  </div>
-
-                  <div className="flex justify-end gap-3 mt-2">
-                    {editingId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingId(null);
-                          setNotes("");
-                          const resetLevels: Record<string, number> = {};
-                          parameters.forEach(p => { resetLevels[p.id] = 0; });
-                          setPainLevels(resetLevels);
-                        }}
-                        className="px-4 py-2 rounded-lg text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition"
-                      >
-                        Cancel Edit
-                      </button>
-                    )}
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 hover:scale-[1.02] transition-all flex items-center gap-2"
+                      className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-lg transition"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                      <span>{editingId ? "Update Telemetry" : "Commit Biometric Log"}</span>
+                      Add
                     </button>
+                  </form>
+                  <div className="flex flex-col gap-2 mt-2 max-h-56 overflow-y-auto pr-1">
+                    {parameters.map((p, index) => (
+                      <div key={`manage-chip-${p.id}-${index}`} className="text-xs px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg flex items-center justify-between gap-2">
+                        {editingId === p.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={editingLabel}
+                              onChange={(e) => setEditingLabel(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleSaveEditedParameter(p.id);
+                                } else if (e.key === "Escape") {
+                                  setEditingId(null);
+                                  setEditingLabel("");
+                                }
+                              }}
+                              className="flex-1 bg-zinc-950 border border-cyan-500 rounded px-2.5 py-1 text-xs text-white focus:outline-none"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditedParameter(p.id)}
+                              className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-md text-xs transition"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setEditingId(null); setEditingLabel(""); }}
+                              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-bold rounded-md text-xs transition"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="font-semibold text-zinc-200">{p.label}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setEditingId(p.id); setEditingLabel(p.label); }}
+                                className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-cyan-400 rounded-md text-xs font-mono transition"
+                                title="Edit parameter name"
+                              >
+                                Edit ✏️
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteParameter(p.id)}
+                                className="px-2 py-1 text-red-400 font-bold hover:text-red-300 hover:bg-zinc-800 rounded-md text-xs transition"
+                                title="Delete parameter"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </form>
-              )
-            )}
-          </div>
-        </div>
+                </div>
+              )}
 
-        {/* <div className="lg:col-span-4 flex flex-col gap-8">
-          <div className="glass-panel p-6 flex flex-col gap-3 h-full justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider pb-3 border-b border-zinc-800/60">Severity Legend</h3>
-              <div className="flex flex-col gap-4 mt-4 text-xs font-mono">
-                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
-                  <span className="w-3 h-3 rounded-full bg-cyan-400 shrink-0" />
-                  <span>0/10 - Pain Free</span>
+              {/* Log Form */}
+              <form onSubmit={handleSaveLog} className="flex flex-col gap-5">
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-mono text-zinc-400">Select Date:</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => {
+                      setDate(e.target.value);
+                      setSelectedCalendarDate(e.target.value);
+                    }}
+                    className="bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 cursor-pointer"
+                  />
                 </div>
-                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
-                  <span className="w-3 h-3 rounded-full bg-yellow-400 shrink-0" />
-                  <span>1-3/10 - Mild</span>
+
+                {/* Parameter Sliders */}
+                <div className="flex flex-col gap-4 max-h-[380px] overflow-y-auto pr-2">
+                  {parameters.map((param, index) => {
+                    const currentVal = painLevels[param.id] ?? 0;
+                    const styles = getSeverityStyles(currentVal);
+                    return (
+                      <div key={`slider-item-${param.id}-${index}`} className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800/80 flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-zinc-200">{param.label}</span>
+                          <span className={`px-2 py-0.5 rounded font-mono font-bold ${styles.bg} ${styles.text}`}>
+                            {currentVal} / 10
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="10"
+                          value={currentVal}
+                          onChange={(e) => handleSliderChange(param.id, parseInt(e.target.value))}
+                          className="w-full accent-cyan-400 bg-zinc-800 h-2 rounded-lg cursor-pointer"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
-                  <span className="w-3 h-3 rounded-full bg-orange-400 shrink-0" />
-                  <span>4-6/10 - Moderate</span>
+
+                {/* Notes Input */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold text-zinc-400">Daily Biometric Notes</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Log symptoms, physical triggers, medication taken..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  />
                 </div>
-                <div className="flex items-center gap-3 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/50">
-                  <span className="w-3 h-3 rounded-full bg-red-400 shrink-0" />
-                  <span>7-10/10 - Severe</span>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                >
+                  Save Daily Biometric Log
+                </button>
+              </form>
+            </div>
+
+            {/* RIGHT COLUMN: CYCLE CALENDAR & LOG SYMPTOMS */}
+            <div className="lg:col-span-6 glass-panel p-6 flex flex-col gap-6 border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                    <span className="text-pink-400">🗓️</span> Cycle Calendar & Log Symptoms
+                  </h2>
+                  <p className="text-xs text-zinc-400">Select date to enter daily symptoms & health notes</p>
                 </div>
               </div>
-            </div>
-            <div className="text-[11px] text-zinc-500 font-mono mt-4 leading-relaxed border-t border-zinc-800/40 pt-4">
-              Use daily slider tracking values to log severity indicators. Higher ratings represent elevated muscular or joint tension.
+
+              {/* Month Navigation */}
+              <div className="flex items-center justify-between bg-zinc-950/80 p-3 rounded-xl border border-zinc-800">
+                <button onClick={handlePrevMonth} className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 rounded-lg text-xs font-mono">
+                  ← Prev
+                </button>
+                <span className="text-xs font-bold font-mono text-zinc-200">
+                  {new Date(calendarYear, calendarMonth).toLocaleString("default", { month: "long" })} {calendarYear}
+                </span>
+                <button onClick={handleNextMonth} className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 rounded-lg text-xs font-mono">
+                  Next →
+                </button>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                  <div key={day} className="py-1 text-zinc-500 font-bold">{day}</div>
+                ))}
+                {Array.from({ length: getFirstDayOfMonth(calendarYear, calendarMonth) }).map((_, i) => (
+                  <div key={`empty-${i}`} className="h-9" />
+                ))}
+                {Array.from({ length: getDaysInMonth(calendarYear, calendarMonth) }).map((_, i) => {
+                  const dayNum = i + 1;
+                  const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+                  const isSelected = selectedCalendarDate === dateStr;
+                  const logForDay = periodLogs.find((l) => l.date === dateStr);
+                  const isPeriodStartDay = startDates.some((s) => getLocalDateString(s) === dateStr);
+                  const hasLog = logForDay && (logForDay.notes?.trim() || logForDay.isPeriodStart || logForDay.flow !== "none");
+
+                  return (
+                    <button
+                      key={dayNum}
+                      onClick={() => {
+                        setSelectedCalendarDate(dateStr);
+                        setDate(dateStr);
+                      }}
+                      className={`h-9 rounded-lg flex flex-col items-center justify-center relative transition-all ${isSelected
+                        ? "bg-pink-600/30 border border-pink-500 text-pink-300 font-bold shadow-lg shadow-pink-500/20"
+                        : isPeriodStartDay
+                          ? "bg-rose-950/70 text-rose-300 border border-rose-500/50 font-semibold"
+                          : hasLog
+                            ? "bg-rose-950/40 text-rose-400 border border-rose-500/20"
+                            : "bg-zinc-950/40 text-zinc-400 hover:bg-zinc-800/60"
+                        }`}
+                    >
+                      <span>{dayNum}</span>
+                      {hasLog && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 absolute bottom-1" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Log Symptoms Form */}
+              <form onSubmit={handleSavePeriodLog} className="flex flex-col gap-5 pt-3 border-t border-zinc-800/60">
+                <div className="text-xs font-mono text-zinc-400">
+                  Logging Symptoms for Date: <strong className="text-pink-400 font-bold">{selectedCalendarDate}</strong>
+                </div>
+
+                {/* Period Start Toggle */}
+                <div className="flex items-center justify-between p-3.5 bg-pink-950/30 border border-pink-500/30 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">🩸</span>
+                    <div>
+                      <div className="text-xs font-bold text-pink-300">Period Started Today</div>
+                      <div className="text-[11px] text-zinc-400">Mark this date as the start of your menstrual cycle</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTogglePeriodStart}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold font-mono transition-all flex items-center gap-1.5 ${isPeriodStart
+                      ? "bg-pink-600 text-white shadow-lg shadow-pink-600/30 border border-pink-400"
+                      : "bg-zinc-900 text-zinc-400 border border-zinc-700 hover:text-zinc-200 hover:border-zinc-600"
+                      }`}
+                  >
+                    {isPeriodStart ? "✓ Period Started" : "+ Mark Period Start"}
+                  </button>
+                </div>
+
+                {/* Text box to enter log symptoms */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold text-zinc-300">Log Daily Symptoms & Health Notes</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Enter any symptoms, cycle notes, mood observations, or physical state..."
+                    value={periodNotes}
+                    onChange={(e) => setPeriodNotes(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-pink-500"
+                  />
+                </div>
+
+                {/* Energy Rating slider */}
+                <div className="flex flex-col gap-2 p-3 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-bold text-zinc-300">Daily Vitality & Energy Score</span>
+                    <span className="text-emerald-400 font-bold font-mono">{inputEnergy} / 10</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={inputEnergy}
+                    onChange={(e) => setInputEnergy(parseInt(e.target.value))}
+                    className="w-full accent-emerald-400 bg-zinc-800 h-2 rounded-lg cursor-pointer"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                >
+                  Save Daily Symptoms & Notes
+                </button>
+              </form>
             </div>
           </div>
-        </div> */}
-      </div>
+        </div>
+      )}
 
+      {/* TOAST FEEDBACK NOTIFIER */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl border border-cyan-500/30 bg-zinc-950/90 backdrop-blur-md shadow-2xl shadow-cyan-500/10 text-xs font-mono font-medium text-cyan-400 animate-slide-up">
-          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl border border-cyan-500/30 bg-zinc-950/90 backdrop-blur-md shadow-2xl text-xs font-mono font-medium text-cyan-300 animate-fade-in">
+          <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
           <span>{toast.message}</span>
         </div>
       )}

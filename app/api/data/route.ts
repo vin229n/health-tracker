@@ -18,12 +18,23 @@ interface LogEntry {
 }
 
 const DEFAULT_PARAMETERS: BiometricParameter[] = [
-  { id: "rightShoulder", label: "Right Shoulder" },
-  { id: "rightArm", label: "Right Arm Muscle" },
-  { id: "leftShoulder", label: "Left Shoulder" },
-  { id: "leftArm", label: "Left Arm (Anterior Deltoid)" },
-  { id: "upperBack", label: "Upper Back (Scapula)" },
-  { id: "lowerBack", label: "Lower Back" },
+  { id: "1", label: "Right Anterior Deltoid" },
+  { id: "2", label: "Right Medial Deltoid" },
+  { id: "3", label: "Right Posterior Deltoid" },
+  { id: "4", label: "Right Arm" },
+  { id: "5", label: "Left Anterior Deltoid" },
+  { id: "6", label: "Left Medial Deltoid" },
+  { id: "7", label: "Left Posterior Deltoid" },
+  { id: "8", label: "Left Arm" },
+  { id: "9", label: "Upper Trapezius" },
+  { id: "10", label: "Middle Trapezius" },
+  { id: "11", label: "Lower Trapezius" },
+  { id: "12", label: "Right Calf" },
+  { id: "13", label: "Left Calf" },
+  { id: "14", label: "Right Lower Back" },
+  { id: "15", label: "Left Lower Back" },
+  { id: "16", label: "Left Knee" },
+  { id: "17", label: "Right Knee" }
 ];
 
 const getMockLogs = (): LogEntry[] => {
@@ -64,16 +75,44 @@ const DATA_DIR = isVercel ? "/tmp" : path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "data.json");
 
 // Hardcoded spreadsheet link for reference
-export const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1YNPRKs4AT9ipLiZ-97mElz7dipgiRUHQBaropNV8nIc/edit?gid=0#gid=0";
+export const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1YNPRKs4AT9ipLiZ-97mElz7dipgiRUHQBaropNV8nIc/edit?gid=768484160#gid=768484160";
 
 // Google Apps Script Web App URL. Define this in .env.local as GOOGLE_SCRIPT_URL,
 // or paste your URL directly into the string below.
-const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbw8O2tdIDKZppS0UU8kIDyum2ZIJyM9Ep6wv4yllr0iolrdjpIW3xenpTYXxJanVVHw/exec";
+const GOOGLE_SCRIPT_URL = process.env.GOOGLE_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbz0ejPlu8wxg1w1aCSYbbe8yBSzyUXRM0mVI39cFWwf5rlVFc8XmrGVjzxKuV288g-L/exec";
+
+function deduplicateParameters(params: any[]): BiometricParameter[] {
+  if (!Array.isArray(params)) return [];
+  const unique: BiometricParameter[] = [];
+  const seenIds = new Set<string>();
+  const seenLabels = new Set<string>();
+
+  params.forEach((p) => {
+    if (!p || !p.id || !p.label) return;
+    const cleanId = String(p.id).trim();
+    const cleanLabel = String(p.label).trim().replace(/\s+/g, " ");
+    const normLabel = cleanLabel.toLowerCase();
+
+    if (["vital", "period", "weather", "energy"].includes(normLabel)) return;
+
+    if (!seenIds.has(cleanId) && !seenLabels.has(normLabel)) {
+      seenIds.add(cleanId);
+      seenLabels.add(normLabel);
+      unique.push({ id: cleanId, label: cleanLabel });
+    }
+  });
+
+  return unique;
+}
 
 async function readLocalData() {
   try {
     const fileContent = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(fileContent);
+    const data = JSON.parse(fileContent);
+    if (data.parameters) {
+      data.parameters = deduplicateParameters(data.parameters);
+    }
+    return data;
   } catch (error: any) {
     if (error.code === "ENOENT") {
       await fs.mkdir(DATA_DIR, { recursive: true });
@@ -90,6 +129,9 @@ async function readLocalData() {
 
 async function writeLocalData(data: any) {
   await fs.mkdir(DATA_DIR, { recursive: true });
+  if (data.parameters) {
+    data.parameters = deduplicateParameters(data.parameters);
+  }
   await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
@@ -118,12 +160,30 @@ async function readData() {
       throw new Error(data.error);
     }
 
+    if (data.parameters) {
+      data.parameters = deduplicateParameters(data.parameters);
+    }
+
+    // Merge local data as fallback for fields that might not be in Google Sheets
+    const localData = await readLocalData();
+    if ((!data.parameters || data.parameters.length === 0) && localData.parameters) {
+      data.parameters = localData.parameters;
+    }
+    if ((!data.periodSettings || Object.keys(data.periodSettings).length === 0) && localData.periodSettings) {
+      data.periodSettings = localData.periodSettings;
+    }
+    if ((!data.periodLogs || data.periodLogs.length === 0) && localData.periodLogs) {
+      data.periodLogs = localData.periodLogs;
+    }
+    if ((!data.weatherLogs || data.weatherLogs.length === 0) && localData.weatherLogs) {
+      data.weatherLogs = localData.weatherLogs;
+    }
+
     // Auto-sync: If the sheet is empty, write current local/mock data to the sheet
     const hasParams = data.parameters && data.parameters.length > 0;
     const hasLogs = data.logs && data.logs.length > 0;
     if (!hasParams && !hasLogs) {
       console.log("Google Sheet is empty. Syncing local/mock data to the Google Sheet...");
-      const localData = await readLocalData();
       await writeData(localData);
       return localData;
     }
@@ -137,9 +197,9 @@ async function readData() {
   }
 }
 
-async function writeData(data: any) {
+async function writeData(payload: any, fullData?: any) {
   // Always update local cache first
-  await writeLocalData(data);
+  await writeLocalData(fullData || payload);
 
   if (!GOOGLE_SCRIPT_URL) {
     console.warn("Google Sheets Integration (GOOGLE_SCRIPT_URL) is not configured. Data saved locally only.");
@@ -152,7 +212,7 @@ async function writeData(data: any) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
       redirect: "follow",
     });
 
@@ -186,15 +246,35 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const currentData = await readData();
+    const payload: any = {};
 
+    if (body.parameters !== undefined) {
+      currentData.parameters = deduplicateParameters(body.parameters);
+      payload.parameters = currentData.parameters;
+      payload.updateParameters = true;
+    }
     if (body.logs !== undefined) {
       currentData.logs = body.logs;
+      payload.logs = currentData.logs;
+      payload.updateLogs = true;
     }
-    if (body.parameters !== undefined) {
-      currentData.parameters = body.parameters;
+    if (body.periodLogs !== undefined) {
+      currentData.periodLogs = body.periodLogs;
+      payload.periodLogs = currentData.periodLogs;
+      payload.updatePeriodLogs = true;
+    }
+    if (body.periodSettings !== undefined) {
+      currentData.periodSettings = body.periodSettings;
+      payload.periodSettings = currentData.periodSettings;
+      payload.updatePeriodSettings = true;
+    }
+    if (body.weatherLogs !== undefined) {
+      currentData.weatherLogs = body.weatherLogs;
+      payload.weatherLogs = currentData.weatherLogs;
+      payload.updateWeatherLogs = true;
     }
 
-    await writeData(currentData);
+    await writeData(payload, currentData);
     return Response.json({ success: true, data: currentData });
   } catch (error: any) {
     return Response.json(
