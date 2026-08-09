@@ -743,9 +743,30 @@
       "notes": "Feeling some neck stiffness and mild headache today."
     }
   ],
-  "periodLogs": [],
+  "periodLogs": [
+    {
+      "date": "2026-07-31",
+      "isPeriodStart": false,
+      "flow": "none",
+      "symptoms": [],
+      "notes": "",
+      "moodSwings": [],
+      "moodLevels": [],
+      "energyLevel": 7
+    },
+    {
+      "date": "2026-07-04",
+      "isPeriodStart": true,
+      "flow": "started",
+      "symptoms": [],
+      "notes": "",
+      "moodSwings": [],
+      "moodLevels": [],
+      "energyLevel": 7
+    }
+  ],
   "periodSettings": {
-    "periodLength": 5
+    "periodLength": 4
   },
   "weatherLogs": [
     {
