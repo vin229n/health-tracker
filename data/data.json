@@ -741,6 +741,54 @@
         "17": 1
       },
       "notes": "Feeling some neck stiffness and mild headache today."
+    },
+    {
+      "id": "1786325897881",
+      "date": "2026-08-09",
+      "painLevels": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 2,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0,
+        "13": 0,
+        "14": 0,
+        "15": 0,
+        "16": 0,
+        "17": 1
+      },
+      "notes": ""
+    },
+    {
+      "id": "1786325869872",
+      "date": "2026-08-10",
+      "painLevels": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 2,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0,
+        "13": 0,
+        "14": 0,
+        "15": 0,
+        "16": 0,
+        "17": 1
+      },
+      "notes": ""
     }
   ],
   "periodLogs": [
@@ -748,31 +796,28 @@
       "date": "2026-07-31",
       "isPeriodStart": true,
       "flow": "started",
-      "symptoms": [],
-      "notes": "",
+      "energyLevel": 4,
       "moodSwings": [],
-      "moodLevels": [],
-      "energyLevel": 4
+      "notes": "",
+      "symptoms": []
     },
     {
       "date": "2026-07-04",
       "isPeriodStart": true,
       "flow": "started",
-      "symptoms": [],
-      "notes": "",
+      "energyLevel": 7,
       "moodSwings": [],
-      "moodLevels": [],
-      "energyLevel": 7
+      "notes": "",
+      "symptoms": []
     },
     {
       "date": "2026-08-09",
       "isPeriodStart": false,
       "flow": "none",
-      "symptoms": [],
-      "notes": "",
+      "energyLevel": 6,
       "moodSwings": [],
-      "moodLevels": [],
-      "energyLevel": 6
+      "notes": "",
+      "symptoms": []
     }
   ],
   "periodSettings": {
@@ -780,12 +825,12 @@
   },
   "weatherLogs": [
     {
-      "date": "2026-08-09",
-      "temp": 24,
-      "condition": "Partly Cloudy",
-      "humidity": 80,
-      "pressure": 911,
-      "advice": "Comfortable weather. Great for routine body recovery."
+      "date": "2026-08-10",
+      "temp": 23,
+      "condition": "Rainy",
+      "humidity": 90,
+      "pressure": 909,
+      "advice": "Rain & humidity change. Warm compression recommended for stiff joints."
     }
   ]
 }

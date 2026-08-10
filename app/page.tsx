@@ -59,6 +59,23 @@ const COLOR_PALETTE = [
   "#14b8a6", // Teal
 ];
 
+const getGradientColor = (baseHex: string) => {
+  if (baseHex.startsWith("#")) {
+    const hex = baseHex.substring(1);
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return {
+      linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+      stops: [
+        [0, `rgba(${r}, ${g}, ${b}, 0.85)`],
+        [1, `rgba(${r}, ${g}, ${b}, 0.15)`]
+      ] as [number, string][]
+    };
+  }
+  return baseHex;
+};
+
 const SYMPTOM_OPTIONS = [
   "Cramps",
   "Headache",
@@ -309,6 +326,7 @@ const getPainVal = (entry: LogEntry | undefined, param: BiometricParameter): num
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [timeframe, setTimeframe] = useState<number>(7);
   const [parameters, setParameters] = useState<BiometricParameter[]>([]);
   const [activeTab, setActiveTab] = useState<"dashboard" | "input">("dashboard");
 
@@ -512,7 +530,7 @@ export default function Home() {
         }
 
         if (uniqueParams.length > 0) {
-          setSelectedCorrelationParams(uniqueParams.slice(0, 4).map((p: any) => p.id));
+          setSelectedCorrelationParams(uniqueParams.slice(0, 3).map((p: any) => p.id));
         }
 
         setMounted(true);
@@ -918,13 +936,13 @@ export default function Home() {
     ? Math.min(100, Math.max(0, (cycleInfoToday.cycleDay / 28) * 100))
     : 0;
 
-  // Generate last 30 continuous calendar days ending today for clear daily tracking
+  // Generate continuous calendar days ending today based on selected timeframe
   const continuousCalendarDates = (() => {
     const dates: string[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    for (let i = 29; i >= 0; i--) {
+    for (let i = timeframe - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       dates.push(getLocalDateString(d));
@@ -932,29 +950,37 @@ export default function Home() {
     return dates;
   })();
 
-  const datesFormattedForDisplay = continuousCalendarDates.map((d) => formatDateString(d));
+  const datesFormattedForDisplay = continuousCalendarDates.map((dateStr) => {
+    const wLog = weatherLogs.find((w) => getLogFormattedDate(w.date) === dateStr);
+    const temp = wLog && wLog.temp !== undefined ? wLog.temp : (dateStr === getLocalDateString() ? weather.temp : 24);
+    return `${formatDateString(dateStr)} (${Math.round(temp)}°C)`;
+  });
 
-  const correlationChartOptions: Highcharts.Options = {
+  const biometricChartOptions: Highcharts.Options = {
     chart: {
       type: "column",
       backgroundColor: "transparent",
       style: { fontFamily: "var(--font-geist-mono), sans-serif" },
-      height: 360,
+      height: 380,
     },
     title: { text: undefined },
     credits: { enabled: false },
     legend: {
-      itemStyle: { color: "#e4e4e7", fontSize: "12px", fontWeight: "bold" },
+      enabled: true,
+      align: "center",
+      verticalAlign: "bottom",
+      itemStyle: { color: "#e4e4e7", fontSize: "11px", fontWeight: "bold" },
       itemHoverStyle: { color: "#ffffff" },
     },
     xAxis: {
       categories: datesFormattedForDisplay,
       labels: {
-        style: { color: "#a1a1aa", fontSize: "11px", fontWeight: "600" },
+        style: { color: "#a1a1aa", fontSize: "10px", fontWeight: "600" },
         rotation: -45,
+        step: timeframe === 7 ? 1 : 2,
       },
-      lineColor: "#3f3f46",
-      tickColor: "#3f3f46",
+      lineColor: "#27272a",
+      tickColor: "#27272a",
       plotLines: continuousCalendarDates
         .map((dateStr, idx) => {
           const isStart = startDates.some((sDate) => getLocalDateString(sDate) === dateStr);
@@ -982,26 +1008,43 @@ export default function Home() {
     yAxis: {
       title: {
         text: "Pain Level (0 to 10)",
-        style: { color: "#38bdf8", fontSize: "12px", fontWeight: "bold" },
+        style: { color: "#38bdf8", fontSize: "11px", fontWeight: "bold" },
       },
       min: 0,
       max: 10,
-      gridLineColor: "#27272a",
+      gridLineColor: "rgba(63, 63, 70, 0.15)",
       labels: { style: { color: "#a1a1aa", fontSize: "11px" } },
     },
     tooltip: {
       shared: true,
-      backgroundColor: "rgba(9, 9, 11, 0.95)",
-      borderColor: "#3f3f46",
+      useHTML: true,
+      backgroundColor: "rgba(9, 9, 13, 0.95)",
+      borderColor: "rgba(255, 255, 255, 0.1)",
+      borderWidth: 1,
       borderRadius: 12,
-      style: { color: "#f4f4f5", fontSize: "12px" },
+      shadow: true,
+      padding: 12,
+      style: { color: "#f4f4f5", fontSize: "12px", fontFamily: "var(--font-geist-mono)" },
+      headerFormat: `<div style="font-weight:bold; font-size:12px; color:#38bdf8; margin-bottom:6px; border-bottom:1px solid #27272a; padding-bottom:4px;">📅 {point.key}</div>`,
+      pointFormat: `<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:3px;">
+        <span style="color:{series.color}; font-weight:600;">● {series.name}:</span>
+        <span style="font-weight:bold; font-family:monospace;">{point.y}{series.tooltipOptions.valueSuffix}</span>
+      </div>`,
     },
     plotOptions: {
       column: {
-        borderRadius: 4,
+        borderRadius: 5,
         borderWidth: 0,
-        groupPadding: 0.1,
-        pointPadding: 0.02,
+        groupPadding: 0.15,
+        pointPadding: 0.03,
+        shadow: false,
+        states: {
+          hover: {
+            brightness: 0.1,
+            borderColor: "rgba(255, 255, 255, 0.2)",
+            borderWidth: 1,
+          },
+        },
       },
     },
     series: [
@@ -1010,11 +1053,12 @@ export default function Home() {
         .map((p, idx) => ({
           name: p.label,
           type: "column" as const,
+          yAxis: 0,
           data: continuousCalendarDates.map((dateStr) => {
             const entry = logs.find((l) => getLogFormattedDate(l.date) === dateStr);
             return getPainVal(entry, p);
           }),
-          color: COLOR_PALETTE[idx % COLOR_PALETTE.length],
+          color: getGradientColor(COLOR_PALETTE[idx % COLOR_PALETTE.length]),
           tooltip: { valueSuffix: " / 10 Pain" },
         })),
       {
@@ -1023,21 +1067,180 @@ export default function Home() {
         color: "#ec4899",
         marker: {
           symbol: "circle",
-          radius: 6,
+          radius: 5,
           fillColor: "#ec4899",
           lineColor: "#ffffff",
-          lineWidth: 2,
+          lineWidth: 1.5,
         },
         data: continuousCalendarDates
           .map((dateStr, idx) => {
             const isStart = startDates.some((sDate) => getLocalDateString(sDate) === dateStr);
-            return isStart ? { x: idx, y: 0, name: formatDateString(dateStr) } : null;
+            return isStart ? { x: idx, y: 10, name: formatDateString(dateStr) } : null;
           })
           .filter((item): item is { x: number; y: number; name: string } => item !== null),
         tooltip: {
           headerFormat: "",
           pointFormat: "🩸 <b>Period Started</b> on {point.name}",
         },
+      },
+    ],
+  };
+
+  const painWeatherChartOptions: Highcharts.Options = {
+    chart: {
+      type: "spline",
+      backgroundColor: "transparent",
+      style: { fontFamily: "var(--font-geist-mono), sans-serif" },
+      height: 400,
+    },
+    title: { text: undefined },
+    credits: { enabled: false },
+    legend: {
+      enabled: true,
+      align: "center",
+      verticalAlign: "bottom",
+      itemStyle: { color: "#e4e4e7", fontSize: "11px", fontWeight: "bold" },
+      itemHoverStyle: { color: "#ffffff" },
+    },
+    xAxis: {
+      categories: datesFormattedForDisplay,
+      labels: {
+        style: { color: "#a1a1aa", fontSize: "10px", fontWeight: "600" },
+        rotation: -45,
+        step: timeframe === 7 ? 1 : 2,
+      },
+      lineColor: "#27272a",
+      tickColor: "#27272a",
+      plotLines: continuousCalendarDates
+        .map((dateStr, idx) => {
+          const isStart = startDates.some((sDate) => getLocalDateString(sDate) === dateStr);
+          if (!isStart) return null;
+          return {
+            color: "#ec4899",
+            dashStyle: "ShortDash" as const,
+            width: 2,
+            value: idx,
+            zIndex: 5,
+            label: {
+              text: "🩸 Period Start",
+              style: {
+                color: "#f472b6",
+                fontWeight: "bold",
+                fontSize: "10px",
+              },
+              rotation: 0,
+              y: -10,
+            },
+          };
+        })
+        .filter(Boolean) as Highcharts.XAxisPlotLinesOptions[],
+    },
+    yAxis: [
+      {
+        // Bottom Pane: Pain levels
+        title: {
+          text: "Pain Level (0 to 10)",
+          style: { color: "#38bdf8", fontSize: "11px", fontWeight: "bold" },
+        },
+        min: 0,
+        max: 10,
+        height: "42%",
+        top: "58%",
+        gridLineColor: "rgba(63, 63, 70, 0.15)",
+        labels: { style: { color: "#a1a1aa", fontSize: "11px" } },
+        offset: 0,
+      },
+      {
+        // Top Pane: Weather
+        title: {
+          text: "Weather (°C / %)",
+          style: { color: "#fbbf24", fontSize: "11px", fontWeight: "bold" },
+        },
+        height: "42%",
+        top: "0%",
+        gridLineColor: "rgba(63, 63, 70, 0.15)",
+        labels: { style: { color: "#fbbf24", fontSize: "11px" } },
+        offset: 0,
+      },
+    ],
+    tooltip: {
+      shared: true,
+      useHTML: true,
+      backgroundColor: "rgba(9, 9, 13, 0.95)",
+      borderColor: "rgba(255, 255, 255, 0.1)",
+      borderWidth: 1,
+      borderRadius: 12,
+      shadow: true,
+      padding: 12,
+      style: { color: "#f4f4f5", fontSize: "12px", fontFamily: "var(--font-geist-mono)" },
+      headerFormat: `<div style="font-weight:bold; font-size:12px; color:#38bdf8; margin-bottom:6px; border-bottom:1px solid #27272a; padding-bottom:4px;">📅 {point.key}</div>`,
+      pointFormat: `<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:3px;">
+        <span style="color:{series.color}; font-weight:600;">● {series.name}:</span>
+        <span style="font-weight:bold; font-family:monospace;">{point.y}{series.tooltipOptions.valueSuffix}</span>
+      </div>`,
+    },
+    plotOptions: {
+      spline: {
+        lineWidth: 2.5,
+        marker: {
+          radius: 3,
+          symbol: "circle",
+        },
+      },
+      line: {
+        lineWidth: 2.5,
+        marker: {
+          radius: 3,
+          symbol: "circle",
+        },
+      },
+    },
+    series: [
+      ...parameters
+        .filter((p) => selectedCorrelationParams.includes(p.id))
+        .map((p, idx) => ({
+          name: p.label,
+          type: "spline" as const,
+          yAxis: 0,
+          data: continuousCalendarDates.map((dateStr) => {
+            const entry = logs.find((l) => getLogFormattedDate(l.date) === dateStr);
+            return getPainVal(entry, p);
+          }),
+          color: COLOR_PALETTE[idx % COLOR_PALETTE.length],
+          tooltip: { valueSuffix: " / 10 Pain" },
+        })),
+      {
+        name: "⚡ Vital Energy Level",
+        type: "spline" as const,
+        yAxis: 0,
+        data: continuousCalendarDates.map((dateStr) => {
+          const pLog = periodLogs.find((p) => getLogFormattedDate(p.date) === dateStr);
+          return pLog && pLog.energyLevel !== undefined ? pLog.energyLevel : 7;
+        }),
+        color: "#10b981",
+        tooltip: { valueSuffix: " / 10 Rating" },
+      },
+      {
+        name: "🌡️ Weather Temp (°C)",
+        type: "spline" as const,
+        yAxis: 1,
+        data: continuousCalendarDates.map((dateStr) => {
+          const wLog = weatherLogs.find((w) => getLogFormattedDate(w.date) === dateStr);
+          return wLog && wLog.temp !== undefined ? wLog.temp : (dateStr === getLocalDateString() ? weather.temp : 24);
+        }),
+        color: "#f59e0b",
+        tooltip: { valueSuffix: " °C" },
+      },
+      {
+        name: "💧 Weather Humidity (%)",
+        type: "spline" as const,
+        yAxis: 1,
+        data: continuousCalendarDates.map((dateStr) => {
+          const wLog = weatherLogs.find((w) => getLogFormattedDate(w.date) === dateStr);
+          return wLog && wLog.humidity !== undefined ? wLog.humidity : (dateStr === getLocalDateString() ? weather.humidity : 65);
+        }),
+        color: "#3b82f6",
+        tooltip: { valueSuffix: "%" },
       },
     ],
   };
@@ -1204,19 +1407,35 @@ export default function Home() {
 
             {/* TELEMETRY CORRELATION PLOT */}
             <div className="lg:col-span-8 glass-panel p-6 flex flex-col gap-5 border border-zinc-800/80 bg-zinc-900/40 rounded-2xl">
-              <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-zinc-800/60 gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-zinc-800/60 gap-3">
                 <div>
-                  <h2 className="text-md font-bold text-zinc-100 flex items-center gap-2">
-                    <span className="text-purple-400">📈</span> 30-day Telemetry Chart
+                  <h2 className="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2">
+                    <span className="text-purple-400">📊</span> Telemetry Progression
                   </h2>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Continuous Calendar View: Daily Pain Levels (Colored Bars) & Period Start Markers (Pink Dashed Lines)
+                    Compare Daily Pain Levels, Vital Energy & Weather Telemetry across calendar dates
                   </p>
+                </div>
+
+                {/* Timeframe selector dropdown */}
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  <label htmlFor="timeframe-select" className="text-xs font-mono text-zinc-500 font-semibold">Timeframe:</label>
+                  <select
+                    id="timeframe-select"
+                    value={timeframe}
+                    onChange={(e) => setTimeframe(Number(e.target.value))}
+                    className="bg-zinc-950/80 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-200 font-mono font-bold focus:outline-none focus:border-purple-500 cursor-pointer"
+                  >
+                    <option value={7}>📅 Last 7 Days</option>
+                    <option value={15}>📅 Last 15 Days</option>
+                    <option value={30}>📅 Last 30 Days</option>
+                  </select>
                 </div>
               </div>
 
               {/* Metric Selectors */}
-              <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-1 px-1">
+              <div className="flex flex-wrap gap-2 pb-2">
+
                 {parameters.map((param, index) => {
                   const isChecked = selectedCorrelationParams.includes(param.id);
                   return (
@@ -1239,8 +1458,22 @@ export default function Home() {
               </div>
 
               {/* Highcharts Render */}
-              <div className="w-full bg-zinc-950/60 rounded-xl border border-zinc-800/80 p-2">
-                <HighchartsReact highcharts={Highcharts} options={correlationChartOptions} />
+              <div className="flex flex-col gap-6">
+                {/* Chart 1: Biometric Telemetry */}
+                <div className="w-full bg-zinc-950/60 rounded-xl border border-zinc-800/80 p-2">
+                  <div className="px-3 pt-2 pb-1 font-mono font-bold text-zinc-300 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-zinc-900/60 mb-2">
+                    📊 Biometric Telemetry Progression
+                  </div>
+                  <HighchartsReact highcharts={Highcharts} options={biometricChartOptions} />
+                </div>
+
+                {/* Chart 2: Pain vs Weather Correlation */}
+                <div className="w-full bg-zinc-950/60 rounded-xl border border-zinc-800/80 p-2">
+                  <div className="px-3 pt-2 pb-1 font-mono font-bold text-zinc-300 text-[10px] uppercase tracking-wider flex items-center gap-1.5 border-b border-zinc-900/60 mb-2">
+                    🌡️ Pain vs Weather Correlation (Line Trend)
+                  </div>
+                  <HighchartsReact highcharts={Highcharts} options={painWeatherChartOptions} />
+                </div>
               </div>
             </div>
           </section>
