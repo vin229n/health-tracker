@@ -72,7 +72,7 @@
   "logs": [
     {
       "id": "1783751772233",
-      "date": "Fri Jul 10 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-10",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -96,7 +96,7 @@
     },
     {
       "id": "1783751846346",
-      "date": "Sat Jul 11 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-11",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -120,7 +120,7 @@
     },
     {
       "id": "1783830987211",
-      "date": "Sun Jul 12 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-12",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -144,7 +144,7 @@
     },
     {
       "id": "1783920108541",
-      "date": "Mon Jul 13 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-13",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -168,7 +168,7 @@
     },
     {
       "id": "1783993033893",
-      "date": "Tue Jul 14 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-14",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -192,7 +192,7 @@
     },
     {
       "id": "1784099610405",
-      "date": "Wed Jul 15 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-15",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -216,7 +216,7 @@
     },
     {
       "id": "1784363343908",
-      "date": "Thu Jul 16 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-16",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -240,7 +240,7 @@
     },
     {
       "id": "1784363367720",
-      "date": "Fri Jul 17 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-17",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -264,7 +264,7 @@
     },
     {
       "id": "1784363532211",
-      "date": "Sat Jul 18 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-18",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -288,7 +288,7 @@
     },
     {
       "id": "1784544602961",
-      "date": "Sun Jul 19 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-19",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -312,7 +312,7 @@
     },
     {
       "id": "1784544648197",
-      "date": "Mon Jul 20 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-20",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -336,7 +336,7 @@
     },
     {
       "id": "1784631348616",
-      "date": "Tue Jul 21 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-21",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -360,7 +360,7 @@
     },
     {
       "id": "1784717299613",
-      "date": "Wed Jul 22 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-22",
       "painLevels": {
         "1": 1,
         "2": 1,
@@ -384,7 +384,7 @@
     },
     {
       "id": "1784789465206",
-      "date": "Thu Jul 23 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-23",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -408,7 +408,7 @@
     },
     {
       "id": "1784984744032",
-      "date": "Fri Jul 24 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-24",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -432,7 +432,7 @@
     },
     {
       "id": "1784984726922",
-      "date": "Sat Jul 25 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-25",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -456,7 +456,7 @@
     },
     {
       "id": "1785144795533",
-      "date": "Mon Jul 27 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-27",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -480,7 +480,7 @@
     },
     {
       "id": "1785289058928",
-      "date": "Tue Jul 28 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-28",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -504,7 +504,7 @@
     },
     {
       "id": "1785289074923",
-      "date": "Wed Jul 29 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-29",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -528,7 +528,7 @@
     },
     {
       "id": "1785429543867",
-      "date": "Thu Jul 30 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-07-30",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -551,8 +551,32 @@
       "notes": ""
     },
     {
+      "id": "1786369123827",
+      "date": "2026-07-31",
+      "painLevels": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 2,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 0,
+        "12": 2,
+        "13": 2,
+        "14": 2,
+        "15": 2,
+        "16": 0,
+        "17": 0
+      },
+      "notes": ""
+    },
+    {
       "id": "1785674583266",
-      "date": "Sat Aug 01 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-01",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -576,7 +600,7 @@
     },
     {
       "id": "1785674641448",
-      "date": "Sun Aug 02 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-02",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -600,7 +624,7 @@
     },
     {
       "id": "1785733404952",
-      "date": "Mon Aug 03 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-03",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -624,7 +648,7 @@
     },
     {
       "id": "1785851770038",
-      "date": "Tue Aug 04 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-04",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -648,7 +672,7 @@
     },
     {
       "id": "1785905394914",
-      "date": "Wed Aug 05 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-05",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -672,7 +696,7 @@
     },
     {
       "id": "1785996496535",
-      "date": "Thu Aug 06 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-06",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -696,7 +720,7 @@
     },
     {
       "id": "1786164361972",
-      "date": "Fri Aug 07 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-07",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -720,7 +744,7 @@
     },
     {
       "id": "1786165631675",
-      "date": "Sat Aug 08 2026 00:00:00 GMT+0530 (India Standard Time)",
+      "date": "2026-08-08",
       "painLevels": {
         "1": 0,
         "2": 0,
@@ -828,8 +852,9 @@
       "date": "2026-08-10",
       "temp": 23,
       "condition": "Rainy",
+      "icon": "🌧️",
       "humidity": 90,
-      "pressure": 909,
+      "pressure": 910,
       "advice": "Rain & humidity change. Warm compression recommended for stiff joints."
     }
   ]

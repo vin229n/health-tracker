@@ -388,7 +388,7 @@ export default function Home() {
     const fetchWeatherForCoords = async (lat: number, lon: number, cityName?: string) => {
       try {
         const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,surface_pressure`
+          `/api/weather?latitude=${lat}&longitude=${lon}`
         );
         if (!res.ok) throw new Error("Weather fetch failed");
         const data = await res.json();
@@ -445,7 +445,7 @@ export default function Home() {
 
         // Automatically sync today's weather log to Google Sheets / API
         const todayStr = getLocalDateString();
-        const weatherEntry = { date: todayStr, temp, condition, humidity, pressure, advice };
+        const weatherEntry = { date: todayStr, temp, condition, icon, humidity, pressure, advice };
         setWeatherLogs((prev) => {
           const idx = prev.findIndex((w) => w.date === todayStr);
           let updated: any[];
@@ -462,8 +462,8 @@ export default function Home() {
           }).catch((e) => console.error("Error saving weather log:", e));
           return updated;
         });
-      } catch (err) {
-        console.error("Error fetching weather:", err);
+      } catch (err: any) {
+        console.warn("Weather fetch failed (using fallback/cached data if available):", err.message);
         setWeather((prev) => ({ ...prev, loading: false }));
       }
     };
@@ -524,6 +524,20 @@ export default function Home() {
         setPeriodLogs(data.periodLogs || []);
         if (data.weatherLogs) {
           setWeatherLogs(data.weatherLogs);
+          // If we already have today's weather logged, use it as fallback/initial weather
+          const todayWeather = data.weatherLogs.find((w: any) => w.date === todayStr);
+          if (todayWeather) {
+            setWeather({
+              temp: todayWeather.temp,
+              condition: todayWeather.condition,
+              icon: todayWeather.icon || "☀️",
+              humidity: todayWeather.humidity,
+              pressure: todayWeather.pressure,
+              city: "Bangalore",
+              advice: todayWeather.advice,
+              loading: false,
+            });
+          }
         }
         if (data.periodSettings) {
           setPeriodSettings(data.periodSettings);
