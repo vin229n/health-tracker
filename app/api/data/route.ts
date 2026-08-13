@@ -201,6 +201,7 @@ async function writeData(payload: any, fullData?: any) {
   // Always update local cache first
   await writeLocalData(fullData || payload);
 
+
   if (!GOOGLE_SCRIPT_URL) {
     console.warn("Google Sheets Integration (GOOGLE_SCRIPT_URL) is not configured. Data saved locally only.");
     return;
